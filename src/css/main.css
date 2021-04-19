@@ -1,0 +1,114 @@
+.center {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width: 50%;
+}
+
+.big {
+    width: 75%;
+}
+
+.greenhighlight {
+    background-color: #f9f9f9 !important;
+}
+
+.greenhighlight table td {
+    background-color: white !important;
+}
+
+button {
+    color: #f9f9f9 !important;
+}
+
+#fileDisplay {
+    background-color: white; 
+    border: 2px solid #dddddd; 
+    padding: 10px; 
+    margin-top: 20px;
+    margin-bottom: 5%;
+    display: none;
+}
+
+#allInOneToggle {
+    margin-top: 2%;
+    margin-bottom: 2%;
+}
+#allInOneToggle > * {
+    cursor: pointer;
+}
+
+#instrumentZipToggle {
+    margin-top: 2%;
+    margin-bottom: 2%;
+}
+#instrumentZipToggle > *{
+    cursor: pointer;
+}
+
+#send {
+    margin-top: 2%;
+}
+
+.formNameInput {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+.btn-primary-yale {
+    background-color: #5f712d;
+    border-color: #4b5924;
+    font-weight: bold;
+}
+
+.btn-primary-yale:focus, .btn-primary-yale:hover{
+    outline: none;
+    background-color: #4b5924 !important;
+    border-color: #36401a;
+}
+
+.btn-primary-yale:focus {
+    box-shadow: 0 0 0 0.2rem rgba(95, 113, 45, 0.25);
+}
+
+.info-container {
+    margin: 5% !important;
+}
+
+#survey_logo {
+    width: 60% !important;
+    max-width: 60% !important;
+    max-height: 100% !important;
+}
+
+.delete {
+    color:#f27474; 
+    font-size:1em;
+}
+
+.delete:hover {
+    color:#f22935; 
+    font-size:1.5em;
+    cursor: pointer;
+}
+
+button:focus, button:hover, a:focus, a:hover {
+    outline: none !important;
+}
+
+#pagecontainer {
+    background-color: #f9f9f9;
+    width: 60%;
+    padding: 1% 2%;
+    margin-top: 0%;
+    top: 0px;
+}
+
+body {
+	background-color: #333;
+	font-family: "Open Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Helvetica,Arial,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol";
+	font-size: 12px;
+	margin: 0;
+	padding: 0;
+	overflow: auto;
+}
