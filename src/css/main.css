@@ -30,21 +30,26 @@ button {
     display: none;
 }
 
-#allInOneToggle {
+.form-check {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.form-switch {
     margin-top: 2%;
     margin-bottom: 2%;
 }
-#allInOneToggle > * {
+.form-switch > * {
     cursor: pointer;
 }
 
-#instrumentZipToggle {
-    margin-top: 2%;
-    margin-bottom: 2%;
+.form-check-input {
+    margin-right: 2%;
+    height: 1rem;
+    width: 1.75rem !important;
 }
-#instrumentZipToggle > *{
-    cursor: pointer;
-}
+
 
 #send {
     margin-top: 2%;

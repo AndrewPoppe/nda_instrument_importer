@@ -1,6 +1,6 @@
 <?php
 
-
+   
 
 ?>
 <!doctype html>
@@ -16,11 +16,10 @@
         <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.min.js"></script>
 		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/vfs_fonts.js"></script>
 		<script type="text/javascript" src="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.10.24/af-2.3.5/b-1.7.0/b-colvis-1.7.0/b-html5-1.7.0/b-print-1.7.0/rg-1.1.2/sb-1.0.1/sp-1.2.2/sl-1.3.3/datatables.min.js"></script>
-		<script src="<?php echo $module->getUrl("src/js/main.js") ?>"></script>
-        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
+		<script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
         <script src="<?php echo $module->getUrl("lib/jquery-ui-1.12.1/jquery-ui.min.js") ?>"></script>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js" integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf" crossorigin="anonymous"></script>
-
+        <script src="<?php echo $module->getUrl("src/js/main.js") ?>" defer></script>
     </head>
     <body style="background:#00356b;">
         <div id="pagecontainer" class="center">
@@ -29,11 +28,12 @@
 	<table style="width:100%;max-width:100%;" cellspacing="0">
 		<tbody><tr>
 			<td valign="top">
-				<div style="padding:10px 0 0;"><img id="survey_logo" onload="try{reloadSpeakIconsForLogo()}catch(e){}" src="/surveys/index.php?pid=460&amp;doc_id_hash=12086ffd22de1877b0db40e0bd9c183b7256955f&amp;__passthru=DataEntry%2Fimage_view.php&amp;s=48CTXYHANK&amp;id=15969" alt="image" title="image" style="max-width:600px;width:600px;max-width:600px;height:105px;max-height:105px;" class="center"></div>			</td>
-			<!-- Increase/decrease font -->
-			
-					</tr>
-	</tbody></table>
+				<div style="padding:10px 0 0;">
+                    <img id="logo" src="<?=$module->getUrl("img/logo.png");?>" alt="image" title="image" style="max-width:600px;width:600px;max-width:600px;height:105px;max-height:105px;" class="center">
+                </div>
+            </td>
+        </tr></tbody>
+    </table>
 </div>
             <div id="surveyinstructions">
 	<div class="info-container">

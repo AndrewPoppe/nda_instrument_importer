@@ -181,15 +181,17 @@ function convertFiles(duplicateAction) {
         formData.append("payload", postData);
         $.ajax({
             type: "POST",
-            url: "https://yaleredcapbot.net:3000?action=NDAConversion",
+            url: "http://localhost:8080/redcap_v10.0.28/ExternalModules/?prefix=nda_converter&page=src/js/testing",
             data: formData,
             processData: false,
             contentType: false,
         }).then(function(result) {
             Swal.close();
+            console.log(result);
             let res = JSON.parse(result);
-            if (!res || !res[0]) makeError('Error creating file.');
-            res = res[0];
+            console.log(1,res);
+            if (!res) makeError('Error creating file.');
+            //res = res[0];
             if (res.type === "text/csv") {
                 let blob = new Blob([res.data], { type: "text/csv;charset=utf-8" });
                 makeSuccess(blob, res.file);
@@ -331,8 +333,6 @@ function clearArea() {
 
 $(document).ready(function() {
     // Make it look nice
-    $('button[name="submit-btn-saverecord"]').remove();
-    $('#changeFont').remove();
     $('#survey_logo').addClass('center');
     $('#pagecontainer').css('max-width', '60%');
     
@@ -366,14 +366,14 @@ $(document).ready(function() {
                 }
                 
                 fileContainer.after($(`<button id="send" onclick="convertFiles()" type="button" class="btn btn-large btn-primary-yale center">Convert File${curFiles.length>1?"s":""}</button>`));
-                fileContainer.after($(`<div id="instrumentZipToggle" class="custom-control custom-switch center">
-                    <input type="checkbox" class="custom-control-input" id="customSwitch2">
-                    <label class="custom-control-label center" for="customSwitch2" data-toggle="tooltip" title="Toggle on to produce instrument zip files. Toggle off to create data dictionaries.">Produce Instrument Zip(s)?</label>
+                fileContainer.after($(`<div id="instrumentZipToggle" class="form-check form-switch center">
+                    <input type="checkbox" class="form-check-input" id="customSwitch2">
+                    <label class="form-check-label" for="customSwitch2" data-toggle="tooltip" title="Toggle on to produce instrument zip files. Toggle off to create data dictionaries.">Produce Instrument Zip(s)?</label>
                     </div>`));
                 if (curFiles.length > 1) {
-                    fileContainer.after($(`<div id="allInOneToggle" class="custom-control custom-switch center">
-                        <input type="checkbox" class="custom-control-input" id="customSwitch1">
-                        <label class="custom-control-label center" for="customSwitch1" data-toggle="tooltip" title="Toggle on to put multiple instruments in the same data dictionary. Toggle off to create separate dictionaries or instrument zips.">Combine the files into one?</label>
+                    fileContainer.after($(`<div id="allInOneToggle" class="form-check form-switch center">
+                        <input type="checkbox" class="form-check-input" id="customSwitch1">
+                        <label class="form-check-label" for="customSwitch1" data-toggle="tooltip" title="Toggle on to put multiple instruments in the same data dictionary. Toggle off to create separate dictionaries or instrument zips.">Combine the files into one?</label>
                     </div>`));
                     $('#customSwitch1').on('change', (evt) => { if (evt.target.checked) $('#customSwitch2')[0].checked = false; });
                     $('#customSwitch2').on('change', (evt) => { if (evt.target.checked) $('#customSwitch1')[0].checked = false; });
