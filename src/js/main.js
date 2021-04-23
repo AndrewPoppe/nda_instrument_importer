@@ -121,8 +121,8 @@ function makeError(title, err, duplicates = false) {
             willClose: () => {
                 const confirmButton = document.querySelector('.swal2-confirm');
                 const denyButton    = document.querySelector('.swal2-deny');
-                $(confirmButton).tooltip('close');
-                $(denyButton).tooltip('close');
+                $(confirmButton).tooltip('hide');
+                $(denyButton).tooltip('hide');
             }
         }
     } else {

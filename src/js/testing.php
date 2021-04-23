@@ -1,14 +1,15 @@
 <?php
 $payload = json_decode($_POST['payload']);
-#exit(json_encode($payload));
-$file = $payload->fileArray[0];
-#http_response_code(400);
-#exit(json_encode("$payload->allInOne"));
-//exit(json_encode([array('ok'=>'yes', 'data'=>$file->data, 'type'=>"text/csv", 'file'=>$file->formName."_2.csv")]));
 
-$array = [['c1','c2','c3'],[1,2,3],[2,3,4]];
-//array_to_csv_download($array);
-
+// Fields to test csv data against
+$matchFields = [
+	"ElementName", 
+	"DataType", 
+	"Required", 
+	"ElementDescription", 
+	"ValueRange", 
+	"Notes"
+];
 
 exit(json_encode(array(
     "type" => "text/csv",
@@ -17,9 +18,17 @@ exit(json_encode(array(
 )));
 
 /**
- * Throw an error with the 
+ * Throw an error with the provided array.
  * 
+ * @param string $message Describe the error
+ * @param int $code Error code for the browser
+ * 
+ * @return void
  */
+function throw_error(string $message, int $code = 500) {
+    http_response_code($code);
+    exit($message);
+}
 
 /**
  * Convert an Array into a CSV string
@@ -52,15 +61,16 @@ function array_to_csv(array $row, array $header = NULL, bool $doHeader = FALSE) 
  * @return array The CSV string as Array.
  */
 function csv_to_array(string $str) {
-    $data = str_getcsv($str, "\n");
+    $stream = fopen('php://memory', 'r+');
+    fwrite($stream, $str);
+    rewind($stream);
+    $header = fgetcsv($stream);
     $result = array();
-    $nrows = count($data);
-    $header = str_getcsv($data[0], ",");
-    for ($i = 1; $i < $nrows; $i++) {
-        $row = str_getcsv($data[$i], ",");
+    $nfields = count($header);
+    while (($row = fgetcsv($stream)) !== FALSE) {
         $assoc_row = array();
-        for ($j = 0; $j < count($header); $j++) {
-            $assoc_row[$header[$j]] = $row[$j];
+        for ($i = 0; $i < $nfields; $i++) {
+            $assoc_row[$header[$i]] = $row[$i];
         }
         array_push($result, $assoc_row);
     }
@@ -72,17 +82,100 @@ function get_header(string $str) {
     return str_getcsv($data[0], ",");
 }
 
+function array_duplicates(array $arr) {
+    return array_unique(array_diff_assoc($arr,array_unique($arr)));
+}
+
+
+/**
+ * Verify input format/fields
+ * 
+ * @param array $csvArr Parsed array of csv values
+ * @param array $fields Array of field names to test against
+ * 
+ * @return bool Whether or not input is valid
+ */
+function inputIsValid(array $csvArr, array $fields) {
+    foreach ($fields as $field) {
+        foreach ($csvArr as $row) {
+            if (!in_array($field, array_keys($row))) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+
+/**
+ * Create a single data dictionary.
+ * 
+ * This does not create a header row so that combining multiple
+ * files is easier.
+ * 
+ * @param array $csvArr Array of CSV values.
+ * @param string $form Name of the form
+ * @param string $duplicateAction What to do with duplicates:
+ *                  ignore: keep duplicates in the data
+ *                  remove: remove any field that already exists in the fieldArray
+ * 
+ * @return array Associative array representing data dictionary
+ */
+function createDataDictionary(array $csvArr, string $form, string $duplicateAction = "") {
+    // remove duplicates if necessary
+    static $matchFields = [];
+    if ($duplicateAction === "remove") {
+        $csvArr = array_filter($csvArr, function ($field) use (&$matchFields) {
+            $result = !in_array($field["ElementName"], $fieldArray) && !in_array($field["ElementName"], $matchFields);
+            $result && array_push($matchFields, $field["ElementName"]);
+            return $result;
+        });
+    }
+
+    // Create the Data Dictionary
+    $result = array_map(function($field) {
+        $note = preg_replace('/[\n\r]/', '', $field["Notes"]);
+
+        return array (
+            "Notes" => $note
+        );
+    }, $csvArr);
+
+    // Return result
+    return $result;
+}
+
+
+
 function convert_all_in_one($fileObject) {
+    global $matchFields;
     $fieldArray = [];
+    $duplicateAction = $fileObject->duplicateAction ?? "";
     $header = get_header($fileObject->fileArray[0]->data);
     $csvString = array_to_csv($header);
 
     foreach($fileObject->fileArray as $fileData) {
         $csvDat = csv_to_array($fileData->data);
 
-        foreach ($csvDat as $row) {
+        if (!inputIsValid($csvDat, $matchFields)) {
+            throw_error('Error: Input file is not valid: ' . $fileData->formName);
+        }
+
+        foreach ($csvDat as $field) {
+            array_push($fieldArray, $field["ElementName"]);
+        }
+
+        $result = createDataDictionary($csvDat, $fileData->formName, $duplicateAction);
+        
+        foreach ($result as $row) {
             $csvString .= array_to_csv($row);
         }
+    }
+
+    $duplicates = array_duplicates($fieldArray);
+    if (count($duplicates) && !$duplicateAction) {
+        throw_error('<strong>The following field names were duplicated in your'
+        .' file(s)</strong>:<br>' . implode('<br>', $duplicates), 501);
     }
     return $csvString;
 }
