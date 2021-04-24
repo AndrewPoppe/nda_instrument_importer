@@ -32,7 +32,11 @@ $header = [
 	'annotation'    => 'Field Annotation',
 ];
 
-
+/*$pvr                = parseValueRange("0::3");
+$parsed             = parseNote("Positive Diagnosis = 3; Intermediate Diagnosis = 2; Negative Diagnosis = 1; 0 = Inadequate Information", $pvr);
+        
+exit(json_encode($parsed));
+*/
 
 exit(json_encode(array(
     "type" => "text/csv",
@@ -213,14 +217,18 @@ function delimMatch(string $note, array $parsedVr, string $delimiter) {
 function chooseMatches(array $matches, int $eqs, array $parsedVr) {
     $pvrl = count($parsedVr);
     if ($eqs === $pvrl) {
-        $matches = array_filter($matches, function($matches) {
-            return count($matches) === $eqs;
-        })[0];
+        $matches = array_filter($matches, function($match) use ($eqs) {
+            return (count($match) === intval($eqs));
+        });
+        $matches = reset($matches);
+        
     } else {
         usort($matches, function ($a, $b) {
             return count($b) - count($a);
         });
-        $matches = $matches[0];
+        
+        $matches = reset($matches);
+        
         if (count($matches) > 0) {
 
             // If we have matches with duplicate keys, merge them
@@ -305,7 +313,6 @@ function parseNote(string $note, array $parsedVr = []) {
     $eqs            = substr_count($note, '=');
 
     $matches = chooseMatches($allMatches, $eqs, $parsedVr);
-    
 
     return $matches;
 }
@@ -326,7 +333,7 @@ function parseBounds(string $valueRange, $parsedNote) {
 
 
 function getFieldType(string $parsedNote) {
-    return $parsedNote ? "text" : "dropdown";
+    return $parsedNote ? "dropdown" : "text";
 }
 
 
@@ -366,19 +373,19 @@ function createDataDictionary(array $csvArr, string $form, string $duplicateActi
     static $matchFields = [];
     if ($duplicateAction === "remove") {
         $csvArr = array_filter($csvArr, function ($field) use (&$matchFields) {
-            $result = !in_array($field["ElementName"], $fieldArray) && !in_array($field["ElementName"], $matchFields);
+            $result = !in_array($field["ElementName"], $matchFields);
             $result && array_push($matchFields, $field["ElementName"]);
             return $result;
         });
     }
 
     // Create the Data Dictionary
-    $result = array_map(function($field) use ($pvrs) {
+    $result = array_map(function($field) use ($form) {
         $note               = preg_replace('/[\n\r]/', '', $field["Notes"]);
         $pvr                = parseValueRange($field["ValueRange"]);
         $parsed             = parseNote($note, $pvr);
-        $parsedNote         = $parsed->matches;
-        $fieldNote          = $parsed->fieldNote;
+        $parsedNote         = $parsed["matches"];
+        $fieldNote          = $parsed["fieldNote"];
         $bounds             = parseBounds($field["ValueRange"], $parsedNote);
         $field_type         = getFieldType($parsedNote);
         $text_validation    = getTextValidation($field["DataType"], $field_type);
@@ -396,7 +403,7 @@ function createDataDictionary(array $csvArr, string $form, string $duplicateActi
             "max"           => $bounds[1],
             "id"            => NULL,
             "branching"     => NULL,
-            "required"      => $field["required"] === "Required" ? "y" : NULL,
+            "required"      => $field["Required"] === "Required" ? "y" : NULL,
             "alignment"     => NULL,
             "question_num"  => NULL,
             "matrix_name"   => NULL,
@@ -412,7 +419,7 @@ function createDataDictionary(array $csvArr, string $form, string $duplicateActi
 
 
 function convert_all_in_one($fileObject) {
-    global $matchFields;
+    global $matchFields, $header;
     $fieldArray = [];
     $duplicateAction = $fileObject->duplicateAction ?? "";
     //$header = get_header($fileObject->fileArray[0]->data);
