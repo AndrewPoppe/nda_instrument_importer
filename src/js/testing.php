@@ -32,17 +32,6 @@ $header = [
 	'annotation'    => 'Field Annotation',
 ];
 
-/*$pvr                = parseValueRange("0::3");
-$parsed             = parseNote("Positive Diagnosis = 3; Intermediate Diagnosis = 2; Negative Diagnosis = 1; 0 = Inadequate Information", $pvr);
-        
-exit(json_encode($parsed));
-*/
-
-exit(json_encode(array(
-    "type" => "text/csv",
-    "data" => convert_all_in_one($payload),
-    "file" => "test.csv"
-)));
 
 /**
  * Throw an error with the provided array.
@@ -365,12 +354,16 @@ function getTextValidation(string $dataType, string $fieldType) {
  * @param string $duplicateAction What to do with duplicates:
  *                  ignore: keep duplicates in the data
  *                  remove: remove any field that already exists in the fieldArray
- * 
+ * @param bool $allInOne Whether this function is being run in context of "allInOne" 
  * @return array Associative array representing data dictionary
  */
-function createDataDictionary(array $csvArr, string $form, string $duplicateAction = "") {
+function createDataDictionary(array $csvArr, string $form, string $duplicateAction = "", bool $allInOne = TRUE) {
     // remove duplicates if necessary
     static $matchFields = [];
+    if (!$allInOne) {
+        // Don't want fields from previous runs to affect individual run
+        $matchFields = [];
+    }
     if ($duplicateAction === "remove") {
         $csvArr = array_filter($csvArr, function ($field) use (&$matchFields) {
             $result = !in_array($field["ElementName"], $matchFields);
@@ -422,7 +415,6 @@ function convert_all_in_one($fileObject) {
     global $matchFields, $header;
     $fieldArray = [];
     $duplicateAction = $fileObject->duplicateAction ?? "";
-    //$header = get_header($fileObject->fileArray[0]->data);
     $csvString = array_to_csv($header);
 
     foreach($fileObject->fileArray as $fileData) {
@@ -448,7 +440,117 @@ function convert_all_in_one($fileObject) {
         throw_error('<strong>The following field names were duplicated in your'
         .' file(s)</strong>:<br>' . implode('<br>', $duplicates), 501);
     }
+
     return $csvString;
 }
+
+
+function convert_individual($fileData, $duplicateAction) {
+    global $matchFields, $header;
+    $csvString = array_to_csv($header);
+    $csvDat = csv_to_array($fileData->data);
+
+    if (!inputIsValid($csvDat, $matchFields)) {
+        throw_error('Error: Input file is not valid: ' . $fileData->formName);
+    }
+
+    $result = createDataDictionary($csvDat, $fileData->formName, $duplicateAction, FALSE);
+    
+    foreach ($result as $row) {
+        $csvString .= array_to_csv($row);
+    }
+    return $csvString;
+}
+
+
+function sendZip($filepath) {
+	$contents = file_get_contents($filepath);
+    $contents = base64_encode($contents);
+    $filename = basename($filepath);
+    sendFile($contents, "application/zip", $filename);
+}
+
+function sendFile($contents, $type, $filename) {
+    http_response_code(200);
+    exit(json_encode(array(
+        "type" => $type,
+        "data" => $contents,
+        "file" => $filename
+    )));
+}
+
+function clear_temp() {
+    array_map(function($file) {
+        if (!unlink(realpath($file))) {
+            throw_error("COULD NOT DELETE ".realpath($file));
+        }
+    }, glob(APP_PATH_TEMP."RC_*zip"));
+}
+
+
+
+function createZip($zipFileName, $contentFileName, $contentString) {
+    $zip = new ZipArchive();
+    $zipFilePath = APP_PATH_TEMP.$zipFileName;
+    $zip->open($zipFilePath, (ZipArchive::OVERWRITE | ZipArchive::CREATE));
+    $contentFileName && $zip->addFromString($contentFileName, $contentString);
+    $zip->close();
+
+    return $zipFilePath;
+}
+
+function createDict($fileObject, $csvString) {
+
+}
+
+function convert($fileObject) {
+    $allInOne = $fileObject->allInOne;
+    $instrumentZip = $fileObject->instrumentZip;
+
+    
+    
+    if ($allInOne) {
+        $csvString = convert_all_in_one($fileObject);
+
+        if ($instrumentZip) {
+            $csvFileName = "instrument.csv";
+            $zipFileName = "RC_instrumentzip_".$fileObject->fileArray[0]->formName.".zip";
+            $zipFilePath = createZip($zipFileName, $csvFileName, $csvString);
+            sendZip($zipFilePath);
+        } else {
+            createDict($fileObject, $csvString);
+        }
+
+        return $result;
+
+    } else {
+
+        $resultZip = new ZipArchive();
+        $resultFileName = $instrumentZip ? "RC_instrumentzips.zip" : "RC_datadictionaries.zip";
+        $resultFilePath = APP_PATH_TEMP.$resultFileName;
+        $resultZip->open($resultFilePath, (ZipArchive::OVERWRITE | ZipArchive::CREATE));
+        
+        $duplicateAction = $fileObject->duplicateAction ?? "";
+        foreach ($fileObject->fileArray as $fileData) {
+            $csvString = convert_individual($fileData, $duplicateAction);
+            if ($instrumentZip) {
+                $csvFileName = "instrument.csv";
+                $zipFileName = "RC_instrumentzip_".$fileData->formName.".zip";
+                $zipFilePath = createZip($zipFileName, $csvFileName, $csvString);
+                $resultZip->addFile($zipFilePath, basename($zipFilePath));
+            } else {
+                $csvFileName = "RC_datadictionary_".$fileData->formName.".csv";
+                $resultZip->addFromString($csvFileName, $csvString);
+            }
+        }
+
+        $resultZip->close();
+        sendZip($resultFilePath);
+
+    }
+}
+
+convert($payload);
+
 
 ?>
