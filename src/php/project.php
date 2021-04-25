@@ -23,32 +23,18 @@
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js" integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf" crossorigin="anonymous"></script>
         <script src="<?php echo $module->getUrl("src/js/main.js") ?>" defer></script>
     </head>
-    <body style="background:#00356b;">
-        <div id="pagecontainer" class="center">
-            <div class="center big">
-                <div id="surveytitlelogo">
-                    <table style="width:100%;max-width:100%;" cellspacing="0">
-                        <tbody><tr>
-                            <td valign="top">
-                                <div style="padding:10px 0 0;">
-                                    <img id="logo" src="<?=$module->getUrl("img/logo.png");?>" alt="image" title="image" style="max-width:600px;width:600px;max-width:600px;height:105px;max-height:105px;" class="center">
-                                </div>
-                            </td>
-                        </tr></tbody>
-                    </table>
-                </div>
-                <div id="surveyinstructions">
-                    <div class="info-container">
-                        <p><strong>Use this tool to convert data dictionaries from the <a title="NIMH Data Archive" href="https://nda.nih.gov/data_dictionary.html?source=NDA&amp;submission=ALL" target="_blank" rel="noopener noreferrer">NIMH Data Archive</a> into REDCap-compatible data dictionaries and/or instrument zip files. </strong></p>
-                        <p>Select one or more NDA data dictionary .csv files below. You will be prompted to provide a name for each file you upload. This will serve as the instrument name in the REDCap data dictionary/instrument zip file.</p>
-                        <p>If you select more than one file, you will have the option to combine all the files into one REDCap data dictionary or to one data dictionary/instrument zip file for each input file.</p>
-                    </div>
-                </div>
-                <p class="center" style="text-align:center;">Upload your NDAR csv file(s)</p>
-                <input id="fileupload" type="file" class="center" style="text-align:center;display:none;" accept="text/csv" multiple />
-                <input id="fileupload_btn" type="button" class="center" value="Select Files..." style="text-align: center;"/>
-                <div id="fileDisplay"></div>
-            </div>
-        </div>
+    <body>
+    <div id="ndaSearch" class="dataTableParentHidden">
+				<br/>
+				<table id="ndaSearchTable" class="dataTable">
+				<thead>
+					<tr>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					
+				</tbody>
+				</table>
+			</div>
     </body>
-</html>

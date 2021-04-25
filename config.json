@@ -14,9 +14,9 @@
     "links": {
         "project": [
             {
-                "name":"Funded Grant Database",
+                "name":"NDA Converter",
                 "icon": "fas fa-database",
-                "url":"src/php/main.php"
+                "url":"src/php/project.php"
             }
         ],
         "control-center": [
