@@ -61,8 +61,13 @@
             table.dataTable tbody td.select-checkbox::before, table.dataTable tbody td.select-checkbox::after, table.dataTable tbody th.select-checkbox::before, table.dataTable tbody th.select-checkbox::after {
                 top: 50% !important;
             }
+            table.dataTable tr.selected td.select-checkbox::after, table.dataTable tr.selected th.select-checkbox::after {    
+                font-size: 16px !important;
+                margin-top: -14px !important;
+                margin-left: -4px !important;
+            }
             button#addFormsButton.disabled {
-                
+
             }
             button#addFormsButton.disabled :hover {
                 outline: none !important;
@@ -136,6 +141,22 @@
                 } else {
                     $('#addFormsButton').prop('disabled', true);
                 }
-            })
+            });
+            $('#addFormsButton').on('click', function(e) {
+                searchTable.rows('.selected').every(function(rowIdx, tableLoop, rowLoop) {
+                    let data = this.data();
+                    let instrument_name = data.shortName;
+                    
+                    $.ajax({
+                        type: "GET",
+                        url: `https://nda.nih.gov/api/datadictionary/datastructure/${instrument_name}`,
+                    }).then(function(result) {
+                        console.log(instrument_name);
+                        console.log(result);
+                    }).catch(function(err) {
+                        console.error(err);
+                    });
+                });
+            });
         </script>
     </body>
