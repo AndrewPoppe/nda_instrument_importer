@@ -1,6 +1,22 @@
 <?php
 $payload = json_decode($_POST['payload'], true);
 
+/**
+ * 
+ * payload has these fields:
+ *   - fileArray        : array of file arrays, each has data and formName
+ *   - allInOne*        : bool whether to combine files into one output (true)
+ *   - instrumentZip*   : bool whether to produce a zip file (false)
+ *   - duplicateAction  : string what action to take given duplicate field names
+ *                        Can be undefined, "rename", "delete"
+ *   - renameSuffix     : string what suffix to append to duplicate field names
+ *                        provided duplicateAction is "rename"
+ *   - json*            : bool Whether data came from json or csv (true)
+ * 
+ * 
+ *   *largely historical, values should match those in parentheses
+ */
+
 // Fields to test csv data against
 // Keys are the JSON keys,
 // Values are the column headers for CSV
@@ -126,7 +142,6 @@ function inputIsValid(array $csvArr, array $fields, bool $json) {
         $field = $json ? $jsonKey : $csvKey;
         foreach ($csvArr as $row) {
             if (!in_array($field, array_keys($row))) {
-                var_export([$field, $row]);
                 return false;
             }
         }
@@ -354,6 +369,16 @@ function getFieldValue(array $row, string $fieldName, bool $json = TRUE) {
     return $value ?? "";
 }
 
+function setFieldValue(array $row, string $fieldName, $value, bool $json = TRUE) {
+    global $matchFields;
+    if ($json) {
+        $row[$fieldName] = $value;
+    } else {
+        $row[$matchFields[$fieldName]] = $value;
+    }
+    return $row;
+}
+
 /**
  * Create a single data dictionary.
  * 
@@ -370,7 +395,7 @@ function getFieldValue(array $row, string $fieldName, bool $json = TRUE) {
  * 
  * @return array Associative array representing data dictionary
  */
-function createDataDictionary(array $csvArr, string $form, string $duplicateAction = "", bool $allInOne = TRUE, bool $json = TRUE) {
+function createDataDictionary(array $csvArr, string $form, string $duplicateAction = "", bool $allInOne = TRUE, bool $json = TRUE, $renameSuffix = "") {
     // remove duplicates if necessary
     static $matchedFields = [];
     
@@ -378,13 +403,28 @@ function createDataDictionary(array $csvArr, string $form, string $duplicateActi
         // Don't want fields from previous runs to affect individual run
         $matchedFields = [];
     }
+
+    // populate matchedFields array as we go to detect duplicates
     if ($duplicateAction === "remove") {
         $csvArr = array_filter($csvArr, function ($field) use (&$matchedFields) {
             $elementName = getFieldValue($field, "name");
             $result = !in_array($elementName, $matchedFields);
-            $result && array_push($matchedFields, $$elementName);
+            $result && array_push($matchedFields, $elementName);
             return $result;
         });
+    } else if ($duplicateAction === "rename") {
+        $csvArr = array_map(function($field) use (&$matchedFields, $form, $renameSuffix) {
+            $elementName = getFieldValue($field, "name");
+            $in_array = in_array($elementName, $matchedFields);
+            while ($in_array) {
+                $suffix = $renameSuffix ?? "_".$form;
+                $elementName = $elementName.$suffix;
+                $in_array = in_array($elementName, $matchedFields);
+            }
+            $field = setFieldValue($field, "name", $elementName);
+            array_push($matchedFields, $elementName);
+            return $field;
+        }, $csvArr);
     }
 
     // Create the Data Dictionary
@@ -438,6 +478,7 @@ function convert_all_in_one($fileObject) {
     $json = $fileObject["json"];
     $fieldArray = [];
     $duplicateAction = $fileObject["duplicateAction"] ?? "";
+    $renameSuffix = $fileObject["renameSuffix"];
     $csvString = array_to_csv($header);
 
     foreach($fileObject["fileArray"] as $fileData) {
@@ -456,7 +497,7 @@ function convert_all_in_one($fileObject) {
             array_push($fieldArray, $elementName);
         }
 
-        $result = createDataDictionary($csvDat, $fileData["formName"], $duplicateAction);
+        $result = createDataDictionary($csvDat, $fileData["formName"], $duplicateAction, TRUE, TRUE, $renameSuffix);
         
         foreach ($result as $row) {
             $csvString .= array_to_csv($row);
@@ -470,37 +511,6 @@ function convert_all_in_one($fileObject) {
     }
 
     return $csvString;
-}
-
-
-function convert_individual($fileData, $duplicateAction, $json) {
-    global $matchFields, $header;
-    $csvString = array_to_csv($header);
-    
-    if (!$json) {
-        $csvDat = csv_to_array($fileData->data);
-    } else {
-        $csvDat = $fileData->data;
-    }
-
-    if (!inputIsValid($csvDat, $matchFields, $json)) {
-        throw_error('Error: Input file is not valid: ' . $fileData["formName"]);
-    }
-
-    $result = createDataDictionary($csvDat, $fileData["formName"], $duplicateAction, FALSE);
-    
-    foreach ($result as $row) {
-        $csvString .= array_to_csv($row);
-    }
-    return $csvString;
-}
-
-
-function sendZip($filepath) {
-	$contents = file_get_contents($filepath);
-    $contents = base64_encode($contents);
-    $filename = basename($filepath);
-    sendFile($contents, "application/zip", $filename);
 }
 
 function sendFile($contents, $type, $filename) {
@@ -556,31 +566,7 @@ function convert($fileObject) {
 
         return $result;
 
-    } else {
-
-        $resultZip = new ZipArchive();
-        $resultFileName = $instrumentZip ? "RC_instrumentzips.zip" : "RC_datadictionaries.zip";
-        $resultFilePath = APP_PATH_TEMP.$resultFileName;
-        $resultZip->open($resultFilePath, (ZipArchive::OVERWRITE | ZipArchive::CREATE));
-        
-        $duplicateAction = $fileObject["duplicateAction"] ?? "";
-        foreach ($fileObject["fileArray"] as $fileData) {
-            $csvString = convert_individual($fileData, $duplicateAction, $json);
-            if ($instrumentZip) {
-                $csvFileName = "instrument.csv";
-                $zipFileName = "RC_instrumentzip_".$fileData["formName"].".zip";
-                $zipFilePath = createZip($zipFileName, $csvFileName, $csvString);
-                $resultZip->addFile($zipFilePath, basename($zipFilePath));
-            } else {
-                $csvFileName = "RC_datadictionary_".$fileData["formName"].".csv";
-                $resultZip->addFromString($csvFileName, $csvString);
-            }
-        }
-
-        $resultZip->close();
-        sendZip($resultFilePath);
-
-    }
+    } 
 }
 
 convert($payload);

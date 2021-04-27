@@ -92,6 +92,7 @@
             }
         </style>
         <script>
+            let fileArray = [];
             let searchTable = $('#ndaSearchTable').DataTable({
                 "ajax": {
                     "url": "https://nda.nih.gov/api/datadictionary/datastructure",
@@ -212,6 +213,7 @@
                     });
                     $.when(...ajaxPromises)
                     .then(function(data, textStatus, jqXHR) {
+                        fileArray = results;
                         convert(results);
                     })
                     .catch(function(err) {
@@ -237,15 +239,51 @@
                     },
                 });
             }
+            function addTitle(element, title) {
+                $(element).prop('data-toggle','tooltip');
+                $(element).prop('title', title);
+                $(element).tooltip();
+            }
 
-            function makeError(err) {
-                let title = err?.responseJSON?.error || "Error";
-                let message = err?.responseJSON?.message || err?.responseText || err;
-                Swal.fire({
-                    icon: 'error',
-                    title: title,
-                    html: message
-                });
+            function makeError(err, title = "Error", duplicates = false) {
+                if (duplicates) {
+                    options = {
+                        icon: 'warning',
+                        title: 'Duplicate Field Names Found',
+                        html: err,
+                        showDenyButton: true,
+                        showCancelButton: true,
+                        confirmButtonText: `Remove Duplicates`,
+                        cancelButtonText: `Cancel`,
+                        denyButtonText: `Rename Duplicates`,
+                        confirmButtonColor: `#286dc0`,
+                        cancelButtonColor: `#978d85`,
+                        denyButtonColor: `#5f712d`,
+                        allowEnterKey: false,
+                        didRender: () => {
+                            const content = Swal.getContent();
+                            if (content) {
+                                const confirmButton = document.querySelector('.swal2-confirm');
+                                const denyButton    = document.querySelector('.swal2-deny');
+                                addTitle(confirmButton, 'This removes all duplicated fields from the final result, leaving only the first occurence of the field.');
+                                addTitle(denyButton, 'This changes the field names of duplicated fields in the final result.\nYou will be prompted to provide a suffix for the new field names.');
+                            }
+                        },
+                        willClose: () => {
+                            const confirmButton = document.querySelector('.swal2-confirm');
+                            const denyButton    = document.querySelector('.swal2-deny');
+                            $(confirmButton).tooltip('close');
+                            $(denyButton).tooltip('close');
+                        }
+                    }
+                } else {
+                    options = {
+                        icon: "error",
+                        title: err?.responseJSON?.error || "Error",
+                        html: err?.responseJSON?.message || err?.responseText || err
+                    };
+                }    
+                return Swal.fire(options);
             }
 
             function makeSuccess(fileData, fileName) {
@@ -253,19 +291,58 @@
                 Swal.fire({
                     icon: 'success',
                     title: 'Conversion successful!',
-                    html: `Click <button onclick='saveFunc();' class="btn btn-primary-yale btn-sm">here</button> ` +
+                    html: `Click <button onclick='saveFunc();' class="btn btn-primaryrc btn-sm">here</button> ` +
                         'to download your converted file(s).',
                     showConfirmButton: false,
                     allowEnterKey: false
                 })
             }
 
-            function convert(fileArray) {
+            function filterFieldName(temp) {
+                temp = temp.trim();
+                temp = temp.toLowerCase();
+                temp = temp.replace(/[^a-z0-9]/ig,"_");
+                temp = temp.replace(/[_]+/g,"_");
+                while (temp.length > 0 && (temp.charAt(0) == "_" || temp.charAt(0)*1 == temp.charAt(0))) {
+                    temp = temp.substr(1,temp.length);
+                }
+                while (temp.length > 0 && temp.charAt(temp.length-1) == "_") {
+                    temp = temp.substr(0,temp.length-1);
+                }
+                return temp;
+            }
+
+            function handleDuplicateChoice(choice) {
+                if (choice.isDismissed) return;
+                let duplicateAction = choice.isConfirmed ? "remove" : "rename";
+                if (duplicateAction === "rename") {
+                    Swal.fire({
+                        title: "Choose Suffix",
+                        input: "text",
+                        inputLabel: "Choose a suffix to be appended to all duplicate field names.\nLeave blank to append the name of the form (e.g., field_form1)",
+                        showCancelButton: true,
+                        preConfirm: function(suffix) {
+                            return filterFieldName(suffix);
+                        }
+                    })
+                    .then(function(result) {
+                        if (result.isDismissed) return;
+                        makeLoading();
+                        convert(fileArray, duplicateAction, result.value);
+                    })
+                } else {
+                    makeLoading();
+                    convert(fileArray, duplicateAction);
+                }
+            }
+
+            function convert(fileArray, duplicateAction, renameSuffix) {
                 let payload = {
                     fileArray: fileArray,
                     allInOne: true,
                     instrumentZip: false,
-                    duplicateAction: "remove",
+                    duplicateAction: duplicateAction,
+                    renameSuffix: renameSuffix,
                     json: true
                 };
                 let postData = JSON.stringify(payload);
@@ -289,7 +366,8 @@
                 }).catch(function(err) {
                     Swal.close();
                     if (err.status == 501) { // duplicates found
-                        makeError(err);
+                        makeError(err.responseText, 'Error converting files', duplicates = true)
+                        .then(handleDuplicateChoice);
                     }
                     else {
                         makeError(err);
