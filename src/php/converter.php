@@ -1,6 +1,8 @@
 <?php
 $payload = json_decode($_POST['payload'], true);
 
+$project = $module->getProject();
+
 /**
  * 
  * payload has these fields:
@@ -94,34 +96,37 @@ function array_to_csv(array $data) {
     fclose($outstream);
     return $csv;
 }
- 
-/**
- * Convert a CSV String into an associative array with headers as keys.
- *
- * @param string $str The CSV formatted string.
- * @return array The CSV string as Array.
- */
-function csv_to_array(string $str) {
-    $stream = fopen('php://memory', 'r+');
-    fwrite($stream, $str);
-    rewind($stream);
-    $header = fgetcsv($stream);
-    $result = array();
-    $nfields = count($header);
-    while (($row = fgetcsv($stream)) !== FALSE) {
-        $assoc_row = array();
-        for ($i = 0; $i < $nfields; $i++) {
-            $assoc_row[$header[$i]] = $row[$i];
-        }
-        array_push($result, $assoc_row);
-    }
-    return $result;
+
+function array_to_csv_file(array $data, string $filename) {
+    $outstream = fopen($filename, 'r+');
+    fputcsv($outstream, $data, ',', '"');
+    fclose($outstream);
 }
 
-function get_header(string $str) {
-    $data = str_getcsv($str, "\n");
-    return str_getcsv($data[0], ",");
+function reformat_array(array $data, array $header) {
+    return array_map(function($row) use ($header) {
+        $result = [];
+        foreach ($header as $field) {
+           $result[$field] = $row[$field];
+        }
+        return $result;
+    }, $data);
 }
+
+function combine_dicts_to_file(array $newData, array $oldDD, string $filename) {
+    $header = array_keys($newData[0]);
+    $dd = reformat_array($oldDD, $header);
+    $outstream = fopen($filename, 'w');    
+    fputcsv($outstream, $header, ',', '"');
+    foreach($oldDD as $ddrow) {
+        fputcsv($outstream, $ddrow, ',', '"');
+    }
+    foreach($newData as $dataRow) {
+        fputcsv($outstream, $dataRow, ',', '"');
+    }
+    fclose($outstream);
+}
+ 
 
 function array_duplicates(array $arr) {
     return array_unique(array_diff_assoc($arr,array_unique($arr)));
@@ -446,24 +451,24 @@ function createDataDictionary(array $csvArr, string $form, string $duplicateActi
         $text_validation    = getTextValidation($type, $field_type);
         
         return array (
-            "variable"      => $elementName,
-            "form"          => $form,
-            "header"        => NULL,
-            "type"          => $field_type,
-            "label"         => $description,
-            "choices"       => $parsedNote,
-            "note"          => $fieldNote,
-            "validation"    => $text_validation,
-            "min"           => $bounds[0],
-            "max"           => $bounds[1],
-            "id"            => NULL,
-            "branching"     => NULL,
-            "required"      => $required === "Required" ? "y" : NULL,
-            "alignment"     => NULL,
-            "question_num"  => NULL,
-            "matrix_name"   => NULL,
-            "matrix_rank"   => NULL,
-            "annotation"    => $note
+            "field_name"                                    => $elementName,
+            "form_name"                                     => $form,
+            "section_header"                                => NULL,
+            "field_type"                                    => $field_type,
+            "field_label"                                   => $description,
+            "select_choices_or_calculations"                => $parsedNote,
+            "field_note"                                    => $fieldNote,
+            "text_validation_type_or_show_slider_number"    => $text_validation,
+            "text_validation_min"                           => $bounds[0],
+            "text_validation_max"                           => $bounds[1],
+            "identifier"                                    => NULL,
+            "branching_logic"                               => NULL,
+            "required_field"                                => $required === "Required" ? "y" : NULL,
+            "custom_alignment"                              => NULL,
+            "question_number"                               => NULL,
+            "matrix_group_name"                             => NULL,
+            "matrix_ranking"                                => NULL,
+            "field_annotation"                              => $note
         );
     }, $csvArr);
 
@@ -480,6 +485,8 @@ function convert_all_in_one($fileObject) {
     $duplicateAction = $fileObject["duplicateAction"] ?? "";
     $renameSuffix = $fileObject["renameSuffix"];
     $csvString = array_to_csv($header);
+
+    $finalResult = array();
 
     foreach($fileObject["fileArray"] as $fileData) {
         if (!$json) {
@@ -499,9 +506,10 @@ function convert_all_in_one($fileObject) {
 
         $result = createDataDictionary($csvDat, $fileData["formName"], $duplicateAction, TRUE, TRUE, $renameSuffix);
         
-        foreach ($result as $row) {
+        /*foreach ($result as $row) {
             $csvString .= array_to_csv($row);
-        }
+        }*/
+        $finalResult = array_merge($finalResult, $result);
     }
 
     $duplicates = array_duplicates($fieldArray);
@@ -510,7 +518,8 @@ function convert_all_in_one($fileObject) {
         .' file(s)</strong>:<br>' . implode('<br>', $duplicates), 501);
     }
 
-    return $csvString;
+    //return $csvString;
+    return $finalResult;
 }
 
 function sendFile($contents, $type, $filename) {
@@ -522,51 +531,26 @@ function sendFile($contents, $type, $filename) {
     )));
 }
 
-function clear_temp() {
-    array_map(function($file) {
-        if (!unlink(realpath($file))) {
-            throw_error("COULD NOT DELETE ".realpath($file));
-        }
-    }, glob(APP_PATH_TEMP."RC_*zip"));
-}
-
-
-
-function createZip($zipFileName, $contentFileName, $contentString) {
-    $zip = new ZipArchive();
-    $zipFilePath = APP_PATH_TEMP.$zipFileName;
-    $zip->open($zipFilePath, (ZipArchive::OVERWRITE | ZipArchive::CREATE));
-    $contentFileName && $zip->addFromString($contentFileName, $contentString);
-    $zip->close();
-
-    return $zipFilePath;
-}
-
-function createDict($fileObject, $csvString) {
-
-}
-
 function convert($fileObject) {
+    global $project, $module;
     $allInOne = $fileObject["allInOne"];
     $instrumentZip = $fileObject["instrumentZip"];
     $json = $fileObject["json"];
+    
+    $result = convert_all_in_one($fileObject);
+    $dd_array = \REDCap::getDataDictionary('array');
+    
+    $filename = APP_PATH_TEMP."dd.csv";
+    var_export($filename);
+    combine_dicts_to_file($result, $dd_array, $filename);
 
-    if ($allInOne) {
-        $csvString = convert_all_in_one($fileObject);
-        
-        if ($instrumentZip) {
-            $csvFileName = "instrument.csv";
-            $zipFileName = "RC_instrumentzip_".$fileObject["fileArray"][0]["formName"].".zip";
-            $zipFilePath = createZip($zipFileName, $csvFileName, $csvString);
-            sendZip($zipFilePath);
-        } else {
-            $csvFileName = $fileObject["fileArray"][0]["formName"].".csv";
-            sendFile($csvString, "text/csv", $csvFileName);
-        }
+    $project_id = $project->getProjectId();
+    $module->importDataDictionary($project_id, $filename);
+    
+    
+    /*$csvFileName = $fileObject["fileArray"][0]["formName"].".csv";
+    sendFile($csvString, "text/csv", $csvFileName); */
 
-        return $result;
-
-    } 
 }
 
 convert($payload);
