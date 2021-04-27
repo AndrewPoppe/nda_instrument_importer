@@ -357,6 +357,7 @@
                     contentType: false,
                 }).then(function(result) {
                     Swal.close();
+                    console.log(result);
                     res = JSON.parse(result);
                     console.log(res);
                     if (res.type === "text/csv") {
