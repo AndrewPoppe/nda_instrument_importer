@@ -1,14 +1,16 @@
 <?php
-$payload = json_decode($_POST['payload']);
+$payload = json_decode($_POST['payload'], true);
 
 // Fields to test csv data against
+// Keys are the JSON keys,
+// Values are the column headers for CSV
 $matchFields = [
-	"ElementName", 
-	"DataType", 
-	"Required", 
-	"ElementDescription", 
-	"ValueRange", 
-	"Notes"
+	"name"          => "ElementName", 
+	"type"          => "DataType", 
+	"required"      => "Required", 
+	"description"   => "ElementDescription", 
+	"valueRange"    => "ValueRange", 
+	"notes"         => "Notes"
 ];
 
 $header = [
@@ -115,13 +117,16 @@ function array_duplicates(array $arr) {
  * 
  * @param array $csvArr Parsed array of csv values
  * @param array $fields Array of field names to test against
+ * @param bool  $json Whether the input is from json or csv
  * 
  * @return bool Whether or not input is valid
  */
-function inputIsValid(array $csvArr, array $fields) {
-    foreach ($fields as $field) {
+function inputIsValid(array $csvArr, array $fields, bool $json) {
+    foreach ($fields as $jsonKey=>$csvKey) {
+        $field = $json ? $jsonKey : $csvKey;
         foreach ($csvArr as $row) {
             if (!in_array($field, array_keys($row))) {
+                var_export([$field, $row]);
                 return false;
             }
         }
@@ -343,6 +348,12 @@ function getTextValidation(string $dataType, string $fieldType) {
 	}
 }
 
+function getFieldValue(array $row, string $fieldName, bool $json = TRUE) {
+    global $matchFields;
+    $value = $json ? $row[$fieldName] : $row[$matchFields[$fieldName]];
+    return $value ?? "";
+}
+
 /**
  * Create a single data dictionary.
  * 
@@ -355,40 +366,51 @@ function getTextValidation(string $dataType, string $fieldType) {
  *                  ignore: keep duplicates in the data
  *                  remove: remove any field that already exists in the fieldArray
  * @param bool $allInOne Whether this function is being run in context of "allInOne" 
+ * @param bool $json Whether the input data was JSON or CSV
+ * 
  * @return array Associative array representing data dictionary
  */
-function createDataDictionary(array $csvArr, string $form, string $duplicateAction = "", bool $allInOne = TRUE) {
+function createDataDictionary(array $csvArr, string $form, string $duplicateAction = "", bool $allInOne = TRUE, bool $json = TRUE) {
     // remove duplicates if necessary
     static $matchedFields = [];
+    
     if (!$allInOne) {
         // Don't want fields from previous runs to affect individual run
         $matchedFields = [];
     }
     if ($duplicateAction === "remove") {
         $csvArr = array_filter($csvArr, function ($field) use (&$matchedFields) {
-            $result = !in_array($field["ElementName"], $matchedFields);
-            $result && array_push($matchedFields, $field["ElementName"]);
+            $elementName = getFieldValue($field, "name");
+            $result = !in_array($elementName, $matchedFields);
+            $result && array_push($matchedFields, $$elementName);
             return $result;
         });
     }
 
     // Create the Data Dictionary
     $result = array_map(function($field) use ($form) {
-        $note               = preg_replace('/[\n\r]/', '', $field["Notes"]);
-        $pvr                = parseValueRange($field["ValueRange"]);
+        $elementName        = getFieldValue($field, "name");
+        $notes              = getFieldValue($field, "notes");
+        $valueRange         = getFieldValue($field, "valueRange");
+        $type               = getFieldValue($field, "type");
+        $description        = getFieldValue($field, "description");
+        $required           = getFieldValue($field, "required");
+        
+        $note               = preg_replace('/[\n\r]/', '', $notes);
+        $pvr                = parseValueRange($valueRange);
         $parsed             = parseNote($note, $pvr);
         $parsedNote         = $parsed["matches"];
         $fieldNote          = $parsed["fieldNote"];
-        $bounds             = parseBounds($field["ValueRange"], $parsedNote);
+        $bounds             = parseBounds($valueRange, $parsedNote);
         $field_type         = getFieldType($parsedNote);
-        $text_validation    = getTextValidation($field["DataType"], $field_type);
+        $text_validation    = getTextValidation($type, $field_type);
         
         return array (
-            "variable"      => $field["ElementName"],
+            "variable"      => $elementName,
             "form"          => $form,
             "header"        => NULL,
             "type"          => $field_type,
-            "label"         => $field["ElementDescription"],
+            "label"         => $description,
             "choices"       => $parsedNote,
             "note"          => $fieldNote,
             "validation"    => $text_validation,
@@ -396,7 +418,7 @@ function createDataDictionary(array $csvArr, string $form, string $duplicateActi
             "max"           => $bounds[1],
             "id"            => NULL,
             "branching"     => NULL,
-            "required"      => $field["Required"] === "Required" ? "y" : NULL,
+            "required"      => $required === "Required" ? "y" : NULL,
             "alignment"     => NULL,
             "question_num"  => NULL,
             "matrix_name"   => NULL,
@@ -413,28 +435,28 @@ function createDataDictionary(array $csvArr, string $form, string $duplicateActi
 
 function convert_all_in_one($fileObject) {
     global $matchFields, $header;
-    $json = $fileObject->json;
+    $json = $fileObject["json"];
     $fieldArray = [];
-    $duplicateAction = $fileObject->duplicateAction ?? "";
+    $duplicateAction = $fileObject["duplicateAction"] ?? "";
     $csvString = array_to_csv($header);
 
-    
-    foreach($fileObject->fileArray as $fileData) {
+    foreach($fileObject["fileArray"] as $fileData) {
         if (!$json) {
-            $csvDat = csv_to_array($fileData->data);
+            $csvDat = csv_to_array($fileData["data"]);
         } else {
-            $csvDat = $fileData->data;
+            $csvDat = $fileData["data"];
         }
 
-        if (!inputIsValid($csvDat, $matchFields)) {
-            throw_error('Error: Input file is not valid: ' . $fileData->formName);
+        if (!inputIsValid($csvDat, $matchFields, $json)) {
+            throw_error('Error: Input file is not valid: ' . $fileData["formName"]);
         }
 
         foreach ($csvDat as $field) {
-            array_push($fieldArray, $field["ElementName"]);
+            $elementName = $json ? $field["name"] : $field["ElementName"];
+            array_push($fieldArray, $elementName);
         }
 
-        $result = createDataDictionary($csvDat, $fileData->formName, $duplicateAction);
+        $result = createDataDictionary($csvDat, $fileData["formName"], $duplicateAction);
         
         foreach ($result as $row) {
             $csvString .= array_to_csv($row);
@@ -461,11 +483,11 @@ function convert_individual($fileData, $duplicateAction, $json) {
         $csvDat = $fileData->data;
     }
 
-    if (!inputIsValid($csvDat, $matchFields)) {
-        throw_error('Error: Input file is not valid: ' . $fileData->formName);
+    if (!inputIsValid($csvDat, $matchFields, $json)) {
+        throw_error('Error: Input file is not valid: ' . $fileData["formName"]);
     }
 
-    $result = createDataDictionary($csvDat, $fileData->formName, $duplicateAction, FALSE);
+    $result = createDataDictionary($csvDat, $fileData["formName"], $duplicateAction, FALSE);
     
     foreach ($result as $row) {
         $csvString .= array_to_csv($row);
@@ -515,20 +537,20 @@ function createDict($fileObject, $csvString) {
 }
 
 function convert($fileObject) {
-    $allInOne = $fileObject->allInOne;
-    $instrumentZip = $fileObject->instrumentZip;
-    $json = $fileObject->json;
+    $allInOne = $fileObject["allInOne"];
+    $instrumentZip = $fileObject["instrumentZip"];
+    $json = $fileObject["json"];
 
     if ($allInOne) {
         $csvString = convert_all_in_one($fileObject);
         
         if ($instrumentZip) {
             $csvFileName = "instrument.csv";
-            $zipFileName = "RC_instrumentzip_".$fileObject->fileArray[0]->formName.".zip";
+            $zipFileName = "RC_instrumentzip_".$fileObject["fileArray"][0]["formName"].".zip";
             $zipFilePath = createZip($zipFileName, $csvFileName, $csvString);
             sendZip($zipFilePath);
         } else {
-            $csvFileName = $fileObject->fileArray[0]->formName.".csv";
+            $csvFileName = $fileObject["fileArray"][0]["formName"].".csv";
             sendFile($csvString, "text/csv", $csvFileName);
         }
 
@@ -541,16 +563,16 @@ function convert($fileObject) {
         $resultFilePath = APP_PATH_TEMP.$resultFileName;
         $resultZip->open($resultFilePath, (ZipArchive::OVERWRITE | ZipArchive::CREATE));
         
-        $duplicateAction = $fileObject->duplicateAction ?? "";
-        foreach ($fileObject->fileArray as $fileData) {
+        $duplicateAction = $fileObject["duplicateAction"] ?? "";
+        foreach ($fileObject["fileArray"] as $fileData) {
             $csvString = convert_individual($fileData, $duplicateAction, $json);
             if ($instrumentZip) {
                 $csvFileName = "instrument.csv";
-                $zipFileName = "RC_instrumentzip_".$fileData->formName.".zip";
+                $zipFileName = "RC_instrumentzip_".$fileData["formName"].".zip";
                 $zipFilePath = createZip($zipFileName, $csvFileName, $csvString);
                 $resultZip->addFile($zipFilePath, basename($zipFilePath));
             } else {
-                $csvFileName = "RC_datadictionary_".$fileData->formName.".csv";
+                $csvFileName = "RC_datadictionary_".$fileData["formName"].".csv";
                 $resultZip->addFromString($csvFileName, $csvString);
             }
         }

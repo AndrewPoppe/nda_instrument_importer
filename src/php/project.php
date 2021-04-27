@@ -7,6 +7,8 @@
     <head>
         <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.10.24/af-2.3.5/b-1.7.0/b-colvis-1.7.0/b-html5-1.7.0/b-print-1.7.0/rg-1.1.2/sb-1.0.1/sp-1.2.2/sl-1.3.3/datatables.min.css"/>
         <script type="text/javascript" src="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.10.24/af-2.3.5/b-1.7.0/b-colvis-1.7.0/b-html5-1.7.0/b-print-1.7.0/rg-1.1.2/sb-1.0.1/sp-1.2.2/sl-1.3.3/datatables.min.js"></script>
+        <script src="//cdn.jsdelivr.net/npm/sweetalert2@10"></script>
+        <script type="text/javascript" src="<?=$module->getUrl("lib/FileSaver.min.js")?>"></script>
     </head>
     <body>
         <div class="pagecontainer">
@@ -176,6 +178,7 @@
                 }
             });
             $('#addFormsButton').on('click', function(e) {
+                makeLoading();
                 let rows = searchTable.rows('.selected');
                 let nRows = rows.count();
                 if (nRows > 20) {
@@ -193,12 +196,16 @@
                         
                         ajaxPromises.push($.ajax({
                             type: "GET",
-                            url: `https://nda.nih.gov/api/datadictionary/datastructure/${instrument_name}/csv`,
+                            url: `https://nda.nih.gov/api/datadictionary/datastructure/${instrument_name}`,
                         }).then(function(result) {
                             results.push({
+                                data: result.dataElements,
+                                formName: result.shortName
+                            });
+                            /*results.push({
                                 data: result,
                                 formName: instrument_name
-                            });
+                            });*/
                         }).catch(function(err) {
                             makeError(err);
                         }));
@@ -233,7 +240,7 @@
 
             function makeError(err) {
                 let title = err?.responseJSON?.error || "Error";
-                let message = err?.responseJSON?.message || err;
+                let message = err?.responseJSON?.message || err?.responseText || err;
                 Swal.fire({
                     icon: 'error',
                     title: title,
@@ -241,23 +248,44 @@
                 });
             }
 
+            function makeSuccess(fileData, fileName) {
+                saveFunc = () => saveAs(fileData, fileName);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Conversion successful!',
+                    html: `Click <button onclick='saveFunc();' class="btn btn-primary-yale btn-sm">here</button> ` +
+                        'to download your converted file(s).',
+                    showConfirmButton: false,
+                    allowEnterKey: false
+                })
+            }
+
             function convert(fileArray) {
-                console.log(fileArray);
-                makeLoading();
                 let payload = {
                     fileArray: fileArray,
                     allInOne: true,
                     instrumentZip: false,
-                    duplicateAction: "remove"
+                    duplicateAction: "remove",
+                    json: true
                 };
-                console.log(payload);
+                let postData = JSON.stringify(payload);
+                let formData = new FormData();
+                formData.append("payload", postData);
+
                 $.ajax({
                     type: "POST",
-                    url: "<?= $module->getUrl('src/js/testing.php') ?>",
-                    data: payload
+                    url: "<?= $module->getUrl('src/php/converter.php') ?>",
+                    data: formData,
+                    processData: false,
+                    contentType: false,
                 }).then(function(result) {
                     Swal.close();
-                    console.log(result);
+                    res = JSON.parse(result);
+                    console.log(res);
+                    if (res.type === "text/csv") {
+                        let blob = new Blob([res.data], { type: "text/csv;charset=utf-8" });
+                        makeSuccess(blob, res.file);
+                    }
                 }).catch(function(err) {
                     Swal.close();
                     if (err.status == 501) { // duplicates found
