@@ -2,6 +2,7 @@
 $payload = json_decode($_POST['payload'], true);
 
 $project = $module->getProject();
+$fieldArray = [];
 
 /**
  * 
@@ -116,15 +117,27 @@ function reformat_array(array $data, array $header) {
 function combine_dicts_to_file(array $newData, array $oldDD, string $filename) {
     $header = array_keys($newData[0]);
     $dd = reformat_array($oldDD, $header);
-    $outstream = fopen($filename, 'w');    
-    fputcsv($outstream, $header, ',', '"');
-    foreach($oldDD as $ddrow) {
-        fputcsv($outstream, $ddrow, ',', '"');
+    $outstream = fopen($filename, 'w');
+    $success = TRUE;
+    if ($outstream === FALSE) {
+        return FALSE;
     }
-    foreach($newData as $dataRow) {
-        fputcsv($outstream, $dataRow, ',', '"');
+    try {
+        fputcsv($outstream, $header, ',', '"');
+        foreach($oldDD as $ddrow) {
+            fputcsv($outstream, $ddrow, ',', '"');
+        }
+        foreach($newData as $dataRow) {
+            fputcsv($outstream, $dataRow, ',', '"');
+        }
     }
-    fclose($outstream);
+    catch (exception $e) {
+        $success = FALSE;
+    }
+    finally {
+        fclose($outstream);
+        return $success;
+    }
 }
  
 
@@ -138,15 +151,13 @@ function array_duplicates(array $arr) {
  * 
  * @param array $csvArr Parsed array of csv values
  * @param array $fields Array of field names to test against
- * @param bool  $json Whether the input is from json or csv
  * 
  * @return bool Whether or not input is valid
  */
-function inputIsValid(array $csvArr, array $fields, bool $json) {
-    foreach ($fields as $jsonKey=>$csvKey) {
-        $field = $json ? $jsonKey : $csvKey;
+function inputIsValid(array $csvArr, array $fields) {
+    foreach ($fields as $field=>$label) {
         foreach ($csvArr as $row) {
-            if (!in_array($field, array_keys($row))) {
+            if (!in_array($field, array_keys($row), true)) {
                 return false;
             }
         }
@@ -210,10 +221,10 @@ function delimMatch(string $note, array $parsedVr, string $delimiter) {
     $result = array_map(function($whole) use ($parsedVr) {
         $parts = explode('=', $whole);
         $parts = array_map('trim', $parts);
-        if (in_array($parts[1], $parsedVr)) {
+        if (in_array($parts[1], $parsedVr, true)) {
             $parts = array_reverse($parts);
         }
-        if (in_array($parts[0], $parsedVr)) {
+        if (in_array($parts[0], $parsedVr, true)) {
             return array(
                 "key" => clean($parts[0]),
                 "value" => clean($parts[1])
@@ -246,6 +257,7 @@ function chooseMatches(array $matches, int $eqs, array $parsedVr) {
         if (count($matches) > 0) {
 
             // If we have matches with duplicate keys, merge them
+            //TODO: THIS IS NOT WORKING
             $matches = array_reduce($matches, function ($acc, $el) {
                 $duplicate = FALSE;
                 foreach ($acc as $i=>$acc_el) {
@@ -259,10 +271,10 @@ function chooseMatches(array $matches, int $eqs, array $parsedVr) {
             }, []);
 
             // If we have more values without matches, create them
-            foreach ($matches as $match) {
-                unset($parsedVr[$match["key"]]);
-            }
-            foreach ($parsedVr as $val) {
+           foreach ($parsedVr as $val) {
+                if (array_key_exists($val, $matches)) {
+                    continue;
+                }
                 $key = preg_replace('/[^0-9A-Za-z._\-]/', '', $val);
                 if ($key !== "") {
                     array_push($matches, array(
@@ -368,19 +380,13 @@ function getTextValidation(string $dataType, string $fieldType) {
 	}
 }
 
-function getFieldValue(array $row, string $fieldName, bool $json = TRUE) {
-    global $matchFields;
-    $value = $json ? $row[$fieldName] : $row[$matchFields[$fieldName]];
+function getFieldValue(array $row, string $fieldName) {
+    $value = $row[$fieldName];
     return $value ?? "";
 }
 
-function setFieldValue(array $row, string $fieldName, $value, bool $json = TRUE) {
-    global $matchFields;
-    if ($json) {
-        $row[$fieldName] = $value;
-    } else {
-        $row[$matchFields[$fieldName]] = $value;
-    }
+function setFieldValue(array $row, string $fieldName, $value) {
+    $row[$fieldName] = $value;
     return $row;
 }
 
@@ -396,40 +402,39 @@ function setFieldValue(array $row, string $fieldName, $value, bool $json = TRUE)
  *                  ignore: keep duplicates in the data
  *                  remove: remove any field that already exists in the fieldArray
  * @param bool $allInOne Whether this function is being run in context of "allInOne" 
- * @param bool $json Whether the input data was JSON or CSV
  * 
  * @return array Associative array representing data dictionary
  */
-function createDataDictionary(array $csvArr, string $form, string $duplicateAction = "", bool $allInOne = TRUE, bool $json = TRUE, $renameSuffix = "") {
-    // remove duplicates if necessary
-    static $matchedFields = [];
-    
-    if (!$allInOne) {
-        // Don't want fields from previous runs to affect individual run
-        $matchedFields = [];
-    }
+function createDataDictionary(array $csvArr, string $form, string $duplicateAction = "", bool $allInOne = TRUE, $renameSuffix = "") {
+    global $fieldArray;
 
-    // populate matchedFields array as we go to detect duplicates
+    // TODO: Check for duplicates with original data dictionary 
+    // populate fieldArray array as we go to detect duplicates
     if ($duplicateAction === "remove") {
-        $csvArr = array_filter($csvArr, function ($field) use (&$matchedFields) {
+        $csvArr = array_filter($csvArr, function ($field) use (&$fieldArray) {
             $elementName = getFieldValue($field, "name");
-            $result = !in_array($elementName, $matchedFields);
-            $result && array_push($matchedFields, $elementName);
+            $result = !in_array($elementName, $fieldArray, true);
+            $result && array_push($fieldArray, $elementName);
             return $result;
         });
     } else if ($duplicateAction === "rename") {
-        $csvArr = array_map(function($field) use (&$matchedFields, $form, $renameSuffix) {
+        $csvArr = array_map(function($field) use (&$fieldArray, $form, $renameSuffix) {
+            $suffix = $renameSuffix !== "" ? $renameSuffix : "_".$form;
             $elementName = getFieldValue($field, "name");
-            $in_array = in_array($elementName, $matchedFields);
+            $in_array = in_array($elementName, $fieldArray, true);
             while ($in_array) {
-                $suffix = $renameSuffix ?? "_".$form;
                 $elementName = $elementName.$suffix;
-                $in_array = in_array($elementName, $matchedFields);
+                $in_array = in_array($elementName, $fieldArray, true);
             }
             $field = setFieldValue($field, "name", $elementName);
-            array_push($matchedFields, $elementName);
+            array_push($fieldArray, $elementName);
             return $field;
         }, $csvArr);
+    } else {
+        foreach ($csvArr as $field) {
+            $elementName = getFieldValue($field, "name");
+            array_push($fieldArray, $elementName);
+        }
     }
 
     // Create the Data Dictionary
@@ -472,43 +477,32 @@ function createDataDictionary(array $csvArr, string $form, string $duplicateActi
         );
     }, $csvArr);
 
-    // Return result
     return $result;
 }
 
 
 
 function convert_all_in_one($fileObject) {
-    global $matchFields, $header;
-    $json = $fileObject["json"];
-    $fieldArray = [];
+    global $matchFields, $header, $fieldArray;
     $duplicateAction = $fileObject["duplicateAction"] ?? "";
-    $renameSuffix = $fileObject["renameSuffix"];
+    $renameSuffix = $fileObject["renameSuffix"] ?? "";
     $csvString = array_to_csv($header);
 
     $finalResult = array();
 
     foreach($fileObject["fileArray"] as $fileData) {
-        if (!$json) {
-            $csvDat = csv_to_array($fileData["data"]);
-        } else {
-            $csvDat = $fileData["data"];
-        }
-
-        if (!inputIsValid($csvDat, $matchFields, $json)) {
+        $data = $fileData["data"];
+    
+        if (!inputIsValid($data, $matchFields)) {
             throw_error('Error: Input file is not valid: ' . $fileData["formName"]);
         }
 
-        foreach ($csvDat as $field) {
-            $elementName = $json ? $field["name"] : $field["ElementName"];
+        /*foreach ($data as $field) {
+            $elementName = $field["name"];
             array_push($fieldArray, $elementName);
-        }
-
-        $result = createDataDictionary($csvDat, $fileData["formName"], $duplicateAction, TRUE, TRUE, $renameSuffix);
-        
-        /*foreach ($result as $row) {
-            $csvString .= array_to_csv($row);
         }*/
+
+        $result = createDataDictionary($data, $fileData["formName"], $duplicateAction, TRUE, $renameSuffix);
         $finalResult = array_merge($finalResult, $result);
     }
 
@@ -531,21 +525,126 @@ function sendFile($contents, $type, $filename) {
     )));
 }
 
+function read_csv(string $filename) {
+    $file = fopen($filename, 'r');
+    $result = [];
+    while (($data = fgetcsv($file)) !== FAlSE) {
+        array_push($result, $data);
+    }
+    return $result;
+}
+
+function get_fields(array $dd) {
+    $fields = [];
+    foreach ($dd as $row) {
+        $val = $row["field_name"] ?? $row[0];
+        array_push($fields, $val);
+    }
+    return array_unique($fields);
+}
+
+function get_forms(array $dd) {
+    $forms = [];
+    foreach ($dd as $row) {
+        $val = $row["form_name"] ?? $row[1];
+        array_push($forms, $val);
+    }
+    return array_unique($forms);
+}
+
+function checkNewDict(array $combined_dd, array $orig_fields, array $orig_forms, array $new_dd) {
+    
+    $result = [
+        "orig_fields" => [],
+        "orig_forms" => [],
+        "new_fields" => [],
+        "new_forms" => []
+    ];
+
+    // fields and forms for instruments to be added
+    $new_fields = get_fields($new_dd);
+    $new_forms = get_forms($new_dd);
+
+    // fields and forms grabbed from the combined dd (this is what we're testing)
+    $combined_fields = get_fields($combined_dd);
+    $combined_forms = get_forms($combined_dd);
+
+    // Check that combined dd has all original forms and fields
+    foreach ($orig_fields as $orig_field) {
+        if (preg_match("/_complete$/", $orig_field)) continue;
+        if (in_array($orig_field, $combined_fields, true)) {
+            array_push($result["orig_fields"], $orig_field);
+        } else {
+            return FALSE;
+            /*$result["orig_fields"] = FALSE;
+            break;*/
+        }
+    }
+    foreach ($orig_forms as $orig_form=>$orig_label) {
+        if (in_array($orig_form, $combined_forms, true)) {
+            array_push($result["orig_forms"], $orig_form);
+        } else {
+            return FALSE;
+            /*$result["orig_forms"] = FALSE;
+            break;*/
+        }
+    }
+
+    // Check that combined dd has all new forms and fields
+    foreach ($new_fields as $new_field) {
+        if (preg_match("/_complete$/", $new_field)) continue;
+        if (in_array($new_field, $combined_fields, true)) {
+            array_push($result["new_fields"], $new_field);
+        } else {
+            return FALSE;
+            /*$result["new_fields"] = FALSE;
+            break;*/
+        }
+    }
+    foreach ($new_forms as $new_form) {
+        if (in_array($new_form, $combined_forms, true)) {
+            array_push($result["new_forms"], $new_form);
+        } else {
+            return FALSE;
+            /*$result["new_forms"] = FALSE;
+            break;*/
+        }
+    }
+
+    return $result;
+    
+}
+
 function convert($fileObject) {
-    global $project, $module;
+    global $project, $module, $fieldArray;
     $allInOne = $fileObject["allInOne"];
     $instrumentZip = $fileObject["instrumentZip"];
-    $json = $fileObject["json"];
+
+    $dd_array = \REDCap::getDataDictionary('array');
+    $current_fields = \REDCap::getFieldNames();
+    $current_forms = \REDCap::getInstrumentNames();
+
+    $fieldArray = array_merge($fieldArray, $current_fields);
     
     $result = convert_all_in_one($fileObject);
-    $dd_array = \REDCap::getDataDictionary('array');
     
     $filename = APP_PATH_TEMP."dd.csv";
-    var_export($filename);
-    combine_dicts_to_file($result, $dd_array, $filename);
+    $combine_status = combine_dicts_to_file($result, $dd_array, $filename);
+    if ($combine_status === FALSE) {
+        throw_error("Failure to produce combined data dictionary.");
+    }
+
+    // Prepare a confirmation if things look good
+    $newDictArr = read_csv($filename);
+    $check = checkNewDict($newDictArr, $current_fields, $current_forms, $result);
+    if (!$check) {
+        throw_error("There was an error in the combined data dictionary.");
+    }
+
+    exit(json_encode(["result" => $check, "success" => TRUE, "dictionary" => $newDictArr]));
 
     $project_id = $project->getProjectId();
-    $module->importDataDictionary($project_id, $filename);
+    //$module->importDataDictionary($project_id, $filename);
     
     
     /*$csvFileName = $fileObject["fileArray"][0]["formName"].".csv";

@@ -286,16 +286,14 @@
                 return Swal.fire(options);
             }
 
-            function makeSuccess(fileData, fileName) {
-                saveFunc = () => saveAs(fileData, fileName);
-                Swal.fire({
+            function makeSuccess(message) {
+                return Swal.fire({
                     icon: 'success',
-                    title: 'Conversion successful!',
-                    html: `Click <button onclick='saveFunc();' class="btn btn-primaryrc btn-sm">here</button> ` +
-                        'to download your converted file(s).',
+                    title: 'Import successful!',
+                    html: message,
                     showConfirmButton: false,
                     allowEnterKey: false
-                })
+                });
             }
 
             function filterFieldName(temp) {
@@ -322,7 +320,7 @@
                         inputLabel: "Choose a suffix to be appended to all duplicate field names.\nLeave blank to append the name of the form (e.g., field_form1)",
                         showCancelButton: true,
                         preConfirm: function(suffix) {
-                            return filterFieldName(suffix);
+                            return suffix.replace(/[^a-zA-Z0-9_]/g, '');
                         }
                     })
                     .then(function(result) {
@@ -334,6 +332,53 @@
                     makeLoading();
                     convert(fileArray, duplicateAction);
                 }
+            }
+
+            function makeFieldHtml(fieldArray) {
+                let div;
+                let outerdiv;
+                let nFields = fieldArray.length;
+                if (nFields > 30) {
+                    div = `<div class="fieldArray" style="display:none;">${fieldArray.join('<br>')}</div>`
+                    message = `Display ${nFields} Fields`;
+                    outerdiv = `<div><button onclick="(function(elt) {
+                        $(elt).siblings('.fieldArray').toggle({duration:500});
+                        $(elt).text(function(i, text){
+                            return text === 'Hide Fields' ? '${message}' : 'Hide Fields';
+                        });
+                    })(this)">${message}</button>${div}</div>`;
+                } else {
+                    div = `<div class="fieldArray">${fieldArray.join('<br>')}</div>`
+                    outerdiv = `<div>${div}</div>`
+                }
+                return outerdiv; 
+            }
+
+            function importDictionary(dictionary) {
+                let postData = JSON.stringify(dictionary);
+                let formData = new FormData();
+                formData.append("dictionary", postData);
+
+                $.ajax({
+                    type: "POST",
+                    url: "<?= $module->getUrl('src/php/importDictionary.php') ?>",
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                }).then(function(result) {
+                    Swal.close();
+                    console.log(result);
+                    result = JSON.parse(result);
+                    if (result.success) {
+                        makeSuccess();
+                    } else {
+                        console.log(result);
+                        makeError(result);
+                    }
+                }).catch(function(err) {
+                    Swal.close();
+                    makeError(err);
+                })
             }
 
             function convert(fileArray, duplicateAction, renameSuffix) {
@@ -360,9 +405,46 @@
                     console.log(result);
                     res = JSON.parse(result);
                     console.log(res);
-                    if (res.type === "text/csv") {
-                        let blob = new Blob([res.data], { type: "text/csv;charset=utf-8" });
-                        makeSuccess(blob, res.file);
+                    if (res.success) {
+                        Swal.fire({
+                            icon: "warning",
+                            title: "Confirm Changes",
+                            html: "Below is a table with the forms and fields to be added. " + 
+                                  "Clicking the <strong>Confirm</strong> button below will add these to the current project.<br>" +
+                                  `<table class="table table-striped table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th></th>
+                                            <th>Forms</th>
+                                            <th>Fields</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Existing</td>
+                                            <td>${res.result.orig_forms.join(', ')}</td>
+                                            <td>${makeFieldHtml(res.result.orig_fields)}</td>
+                                        </tr>
+                                        <tr>
+                                            <td>To be added</td>
+                                            <td>${res.result.new_forms.join(', ')}</td>
+                                            <td>${makeFieldHtml(res.result.new_fields)}</td>
+                                        </tr>
+                                    </tbody>
+                                   </table>`,
+                            showCancelButton: true,
+                            confirmButtonText: "Confirm"
+                        })
+                        .then(function(response) {
+                            if (response.isConfirmed) {
+                                makeLoading();
+                                importDictionary(res.dictionary);
+                            }
+                        })
+                        .catch(function(err) {
+                            Swal.close();
+                            makeError(err);
+                        });
                     }
                 }).catch(function(err) {
                     Swal.close();
