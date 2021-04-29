@@ -8,16 +8,10 @@ $fieldArray = [];
  * 
  * payload has these fields:
  *   - fileArray        : array of file arrays, each has data and formName
- *   - allInOne*        : bool whether to combine files into one output (true)
- *   - instrumentZip*   : bool whether to produce a zip file (false)
  *   - duplicateAction  : string what action to take given duplicate field names
  *                        Can be undefined, "rename", "delete"
  *   - renameSuffix     : string what suffix to append to duplicate field names
  *                        provided duplicateAction is "rename"
- *   - json*            : bool Whether data came from json or csv (true)
- * 
- * 
- *   *largely historical, values should match those in parentheses
  */
 
 // Fields to test csv data against
@@ -32,28 +26,6 @@ $matchFields = [
 	"notes"         => "Notes"
 ];
 
-$header = [
-	'variable'      => 'Variable / Field Name',
-	'form'          => 'Form Name',
-	'header'        => 'Section Header',
-	'type'          => 'Field Type',
-	'label'         => 'Field Label',
-	'choices'       => 'Choices, Calculations, OR Slider Labels',
-	'note'          => 'Field Note',
-	'validation'    => 'Text Validation Type OR Show Slider Number',
-	'min'           => 'Text Validation Min',
-	'max'           => 'Text Validation Max',
-	'id'            => 'Identifier?',
-	'branching'     => 'Branching Logic (Show field only if...)',
-	'required'      => 'Required Field?',
-	'alignment'     => 'Custom Alignment',
-	'question_num'  => 'Question Number (surveys only)',
-	'matrix_name'   => 'Matrix Group Name',
-	'matrix_rank'   => 'Matrix Ranking?',
-	'annotation'    => 'Field Annotation',
-];
-
-
 /**
  * Throw an error with the provided array.
  * 
@@ -65,43 +37,6 @@ $header = [
 function throw_error(string $message, int $code = 500) {
     http_response_code($code);
     exit($message);
-}
-
-/**
- * Convert an Array into a CSV string
- * 
- * This function works with a single row of data.
- * By default it will not include a header row. If you want a header, it will 
- * grab the values from the array keys of the $row parameter. 
- *
- * @param array $row The Array to formatted as CSV.
- * @param array $header An associative array with header id as key and header title as value
- * @param bool $getHeader Whether to return the header row instead of data.
- * 
- * @return string The formatted CSV string.
- */
-/*function array_to_csv(array $data, bool $getHeader = FALSE) {
-    $outstream = fopen("php://temp", 'r+');
-    $data = $getHeader ? array_values($data) : $data;
-    fputcsv($outstream, $data, ',', '"');
-    rewind($outstream);
-    $csv = fgets($outstream);
-    fclose($outstream);
-    return $csv;
-}*/
-function array_to_csv(array $data) {
-    $outstream = fopen("php://temp", 'r+');
-    fputcsv($outstream, $data, ',', '"');
-    rewind($outstream);
-    $csv = fgets($outstream);
-    fclose($outstream);
-    return $csv;
-}
-
-function array_to_csv_file(array $data, string $filename) {
-    $outstream = fopen($filename, 'r+');
-    fputcsv($outstream, $data, ',', '"');
-    fclose($outstream);
 }
 
 function reformat_array(array $data, array $header) {
@@ -239,8 +174,9 @@ function delimMatch(string $note, array $parsedVr, string $delimiter) {
 }
 
 
-function chooseMatches(array $matches, int $eqs, array $parsedVr) {
+function chooseMatches(array $matches, array $parsedVr, string $note) {
     $pvrl = count($parsedVr);
+    $eqs  = substr_count($note, '=');
     if ($eqs === $pvrl) {
         $matches = array_filter($matches, function($match) use ($eqs) {
             return (count($match) === intval($eqs));
@@ -248,6 +184,7 @@ function chooseMatches(array $matches, int $eqs, array $parsedVr) {
         $matches = reset($matches);
         
     } else {
+        // TODO: Do we need to sort? If so, can we re-order them at the end to match input data?
         usort($matches, function ($a, $b) {
             return count($b) - count($a);
         });
@@ -282,7 +219,7 @@ function chooseMatches(array $matches, int $eqs, array $parsedVr) {
                     ));
                 }
             }
-        } else {
+        } else if ($pvrl < 20) {
             foreach ($parsedVr as $i=>$val) {
                 $key = (string) (is_numeric($val) ? (int)$val : intval($i)+1);
                 array_push($matches, array(
@@ -290,6 +227,10 @@ function chooseMatches(array $matches, int $eqs, array $parsedVr) {
                     "value" => $val
                 ));
             }
+        } else {
+            // This should catch situations where there is just a range of values with no labels (greater than 20 of them, see else if above)
+            // TODO: Min and Max are not working correctly in this case
+            $matches = NULL;
         }
 
     }
@@ -335,9 +276,8 @@ function parseNote(string $note, array $parsedVr = []) {
     $matches_c      = delimMatch($note, $parsedVr, ',');
     $matchs_scc     = delimMatch($note, $parsedVr, ';,');
     $allMatches     = [$matchesFore, $matchesBack, $matches_sc, $matches_c, $matchs_scc];
-    $eqs            = substr_count($note, '=');
 
-    $matches = chooseMatches($allMatches, $eqs, $parsedVr);
+    $matches = chooseMatches($allMatches, $parsedVr, $note);
 
     return $matches;
 }
@@ -481,11 +421,10 @@ function createDataDictionary(array $csvArr, string $form, string $duplicateActi
 
 
 function convert_all_in_one($fileObject) {
-    global $matchFields, $header, $fieldArray;
+    global $matchFields, $fieldArray;
     $duplicateAction = $fileObject["duplicateAction"] ?? "";
     $renameSuffix = $fileObject["renameSuffix"] ?? "";
-    $csvString = array_to_csv($header);
-
+    
     $finalResult = array();
 
     foreach($fileObject["fileArray"] as $fileData) {
@@ -494,11 +433,6 @@ function convert_all_in_one($fileObject) {
         if (!inputIsValid($data, $matchFields)) {
             throw_error('Error: Input file is not valid: ' . $fileData["formName"]);
         }
-
-        /*foreach ($data as $field) {
-            $elementName = $field["name"];
-            array_push($fieldArray, $elementName);
-        }*/
 
         $result = createDataDictionary($data, $fileData["formName"], $duplicateAction, TRUE, $renameSuffix);
         $finalResult = array_merge($finalResult, $result);
@@ -510,17 +444,7 @@ function convert_all_in_one($fileObject) {
         .' file(s)</strong>:<br>' . implode('<br>', $duplicates), 501);
     }
 
-    //return $csvString;
     return $finalResult;
-}
-
-function sendFile($contents, $type, $filename) {
-    http_response_code(200);
-    exit(json_encode(array(
-        "type" => $type,
-        "data" => $contents,
-        "file" => $filename
-    )));
 }
 
 function read_csv(string $filename) {
@@ -574,8 +498,6 @@ function checkNewDict(array $combined_dd, array $orig_fields, array $orig_forms,
             array_push($result["orig_fields"], $orig_field);
         } else {
             return FALSE;
-            /*$result["orig_fields"] = FALSE;
-            break;*/
         }
     }
     foreach ($orig_forms as $orig_form=>$orig_label) {
@@ -583,8 +505,6 @@ function checkNewDict(array $combined_dd, array $orig_fields, array $orig_forms,
             array_push($result["orig_forms"], $orig_form);
         } else {
             return FALSE;
-            /*$result["orig_forms"] = FALSE;
-            break;*/
         }
     }
 
@@ -595,8 +515,6 @@ function checkNewDict(array $combined_dd, array $orig_fields, array $orig_forms,
             array_push($result["new_fields"], $new_field);
         } else {
             return FALSE;
-            /*$result["new_fields"] = FALSE;
-            break;*/
         }
     }
     foreach ($new_forms as $new_form) {
@@ -604,8 +522,6 @@ function checkNewDict(array $combined_dd, array $orig_fields, array $orig_forms,
             array_push($result["new_forms"], $new_form);
         } else {
             return FALSE;
-            /*$result["new_forms"] = FALSE;
-            break;*/
         }
     }
 
@@ -615,9 +531,7 @@ function checkNewDict(array $combined_dd, array $orig_fields, array $orig_forms,
 
 function convert($fileObject) {
     global $project, $module, $fieldArray;
-    $allInOne = $fileObject["allInOne"];
-    $instrumentZip = $fileObject["instrumentZip"];
-
+    
     $dd_array = \REDCap::getDataDictionary('array');
     $current_fields = \REDCap::getFieldNames();
     $current_forms = \REDCap::getInstrumentNames();
@@ -642,15 +556,8 @@ function convert($fileObject) {
     exit(json_encode(["result" => $check, "success" => TRUE, "dictionary" => $newDictArr]));
 
     $project_id = $project->getProjectId();
-    //$module->importDataDictionary($project_id, $filename);
-    
-    
-    /*$csvFileName = $fileObject["fileArray"][0]["formName"].".csv";
-    sendFile($csvString, "text/csv", $csvFileName); */
-
 }
 
 convert($payload);
-
 
 ?>
