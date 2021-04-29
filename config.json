@@ -15,7 +15,7 @@
         "project": [
             {
                 "name":"NDA Converter",
-                "icon": "fas fa-database",
+                "icon": "fas fa-download",
                 "url":"src/php/project.php",
                 "show-header-and-footer": true
             }
@@ -23,7 +23,7 @@
         "control-center": [
             {
                 "name":"NDA Converter",
-                "icon":"fas fa-database",
+                "icon":"fas fa-download",
                 "url":"src/php/main.php"
             }
         ]

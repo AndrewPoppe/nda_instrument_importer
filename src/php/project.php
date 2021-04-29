@@ -13,7 +13,15 @@
     <body>
         <div class="pagecontainer">
             <div>
-                <h4>Use the table below to search for data collection instruments in the NIMH Data Archive</h3>
+                <h4>NDA Instrument Converter</h3>
+                <p>
+                    Use the table below to search for data collection instruments in the NIMH Data Archive.
+                    Select the instruments you would like to add to this REDCap project using the checkboxes.
+                    Multiple instruments can be added by holding <code>CTRL</code> while clicking (<code>CMD</code> on Apple machines).
+                </p>
+                <p>
+                    Click the <strong>Add selected forms</strong> button once you have made your selections.   
+                </p>
                 <br/>
                 <hr>
 
@@ -69,6 +77,12 @@
         <style>
             table.dataTable tbody td.select-checkbox::before, table.dataTable tbody td.select-checkbox::after, table.dataTable tbody th.select-checkbox::before, table.dataTable tbody th.select-checkbox::after {
                 top: 50% !important;
+                cursor: pointer;
+            }
+            td.select-checkbox:hover {
+                cursor: pointer;
+                background-color: inherit;
+                filter: brightness(80%);
             }
             table.dataTable tr.selected td.select-checkbox::after, table.dataTable tr.selected th.select-checkbox::after {    
                 font-size: 16px !important;
@@ -76,12 +90,16 @@
                 margin-left: -4px !important;
                 text-shadow: none !important;
             }
+            div.dtsp-panesContainer tr:not(.selected):hover {
+                filter: brightness(80%);
+            }
+            div.dtsp-panesContainer tr {
+                cursor: pointer;
+            }
             button#addFormsButton.disabled {
 
             }
-            button#addFormsButton.disabled :hover {
-                outline: none !important;
-            }
+            
             tr.selected {
                 background-color: #00356b !important;
                 color: #ddd !important;
@@ -90,6 +108,36 @@
             div#ndaSearch {
                 padding-right: 5%;
             }
+            .swal2-popup {
+                min-width: 32em;
+                width: auto;
+            }
+            button:hover {
+                outline: none !important;
+            }
+            div.dataTableParentHidden { overflow:hidden; height:0px; width:100%; }
+            div.ui-draggable { cursor: move; cursor: grab; cursor: -moz-grab; cursor: -webkit-grab; }
+            div.ui-draggable-dragging { cursor: grabbing; cursor: -moz-grabbing; cursor: -webkit-grabbing; }
+            div.dtsb-searchBuilder { cursor: inherit; }
+            div.dtsb-searchBuilder select { cursor: pointer; }
+            div.dt-buttons {
+                margin-left: 10px;
+            }
+            div.dt-button-collection div[role=menu]:not(.dtsb-searchBuilder) button.active {
+                width: 100%;
+                font-weight: normal;    
+            }
+            div.dt-button-collection div[role=menu]:not(.dtsb-searchBuilder) button.active:hover {
+                width: 100%;
+                filter: brightness(110%);    
+            }
+            
+            div.dt-button-collection div[role=menu]:not(.dtsb-searchBuilder) button:not(.active) {
+                width: 100%;
+                filter: brightness(60%);
+                font-weight: lighter;     
+            }
+
         </style>
         <script>
             let fileArray = [];
@@ -124,37 +172,62 @@
                             return new Date(data).toLocaleString();
                         }
                         return data;
-                    }}
+                    }},
                 ],
                 dom: 'lBfrtip',
                 stateSave: true,
-                buttons: [
-                    {
-                        text: "Select All",
-                        action: function (e, dt, node, config) {
-                            dt.rows({filter: 'applied'}).select();
+                buttons: {
+                    dom: {
+                        button: {
+                            tag: 'button',
+                            className: ''
                         }
                     },
-                    "selectNone",
-                    {
-                        extend: 'searchPanes',
-                        config: {
-                            cascadePanes: true
+                    buttons: [
+                        {
+                            text: "Select All",
+                            action: function (e, dt, node, config) {
+                                dt.rows({filter: 'applied'}).select();
+                            },
+                            className: "btn btn-sm btn-primaryrc",
+                            titleAttr: "Select all rows that have not been filtered"
+                        },
+                        {
+                            text: "Select None",
+                            extend: "selectNone",
+                            className: "btn btn-sm btn-primaryrc",
+                            titleAttr: "Remove all selections"
+                        },
+                        {
+                            extend: 'searchPanes',
+                            config: {
+                                cascadePanes: true
+                            },
+                            className: "btn btn-sm btn-primaryrc",
+                            titleAttr: "Simple filter interface"
+                            
+                        },
+                        {
+                            extend: 'searchBuilder',
+                            className: "btn btn-sm btn-primaryrc",
+                            titleAttr: "Build complex filters"
+                        },
+                        {
+                            extend: 'colvis',
+                            className: "btn btn-sm btn-primaryrc",
+                            titleAttr: "Show or hide columns in this table"
+                        },
+                        {
+                            text: 'Restore Default',
+                            action: function (e, dt, node, config) {
+                                dt.state.clear();
+                                window.location.reload();
+                            },
+                            className: "btn btn-sm btn-danger",
+                            titleAttr: "Remove all filter, sort, and column visibility settings. Restores whole table to default"
                         }
-                        
-                    },
-                    {
-                        extend: 'searchBuilder'
-                    },
-                    'colvis',
-                    {
-                        text: 'Restore Default',
-                        action: function (e, dt, node, config) {
-                            dt.state.clear();
-                            window.location.reload();
-                        }
-                    }
-                ],
+                    ]
+                },
                 columnDefs: [{
                     orderable: false,
                     searchable: false,
@@ -171,6 +244,7 @@
                     [1, 'asc']
                 ]
             });
+
             searchTable.on('select deselect', function(e, dt, type, indexes) {
                 if (dt.rows('.selected').any()) {
                     $('#addFormsButton').prop('disabled', false);
@@ -338,7 +412,7 @@
                 let div;
                 let outerdiv;
                 let nFields = fieldArray.length;
-                if (nFields > 30) {
+                if (nFields > 10) {
                     div = `<div class="fieldArray" style="display:none;">${fieldArray.join('<br>')}</div>`
                     message = `Display ${nFields} Fields`;
                     outerdiv = `<div><button onclick="(function(elt) {
@@ -407,10 +481,12 @@
                     console.log(res);
                     if (res.success) {
                         Swal.fire({
-                            icon: "warning",
+                            //icon: "warning",
+                            iconHtml:"<i class=\"fas fa-clipboard-check\"></i>", 
+                            iconColor:"#aed130",
                             title: "Confirm Changes",
-                            html: "Below is a table with the forms and fields to be added. " + 
-                                  "Clicking the <strong>Confirm</strong> button below will add these to the current project.<br>" +
+                            html: "Below is a table with the forms and fields to be added.<br>" + 
+                                  "Clicking the <strong>Confirm</strong> button below will add these to the current project.<br><br>" +
                                   `<table class="table table-striped table-bordered">
                                     <thead>
                                         <tr>
@@ -422,12 +498,12 @@
                                     <tbody>
                                         <tr>
                                             <td>Existing</td>
-                                            <td>${res.result.orig_forms.join(', ')}</td>
+                                            <td>${res.result.orig_forms.join('<br>')}</td>
                                             <td>${makeFieldHtml(res.result.orig_fields)}</td>
                                         </tr>
                                         <tr>
                                             <td>To be added</td>
-                                            <td>${res.result.new_forms.join(', ')}</td>
+                                            <td>${res.result.new_forms.join('<br>')}</td>
                                             <td>${makeFieldHtml(res.result.new_fields)}</td>
                                         </tr>
                                     </tbody>

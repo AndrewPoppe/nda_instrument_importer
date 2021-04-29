@@ -257,7 +257,6 @@ function chooseMatches(array $matches, int $eqs, array $parsedVr) {
         if (count($matches) > 0) {
 
             // If we have matches with duplicate keys, merge them
-            //TODO: THIS IS NOT WORKING
             $matches = array_reduce($matches, function ($acc, $el) {
                 $duplicate = FALSE;
                 foreach ($acc as $i=>$acc_el) {
@@ -271,8 +270,8 @@ function chooseMatches(array $matches, int $eqs, array $parsedVr) {
             }, []);
 
             // If we have more values without matches, create them
-           foreach ($parsedVr as $val) {
-                if (array_key_exists($val, $matches)) {
+            foreach ($parsedVr as $val) {
+                if (in_array($val, array_column($matches, "key"), true)) {
                     continue;
                 }
                 $key = preg_replace('/[^0-9A-Za-z._\-]/', '', $val);
@@ -408,7 +407,6 @@ function setFieldValue(array $row, string $fieldName, $value) {
 function createDataDictionary(array $csvArr, string $form, string $duplicateAction = "", bool $allInOne = TRUE, $renameSuffix = "") {
     global $fieldArray;
 
-    // TODO: Check for duplicates with original data dictionary 
     // populate fieldArray array as we go to detect duplicates
     if ($duplicateAction === "remove") {
         $csvArr = array_filter($csvArr, function ($field) use (&$fieldArray) {
