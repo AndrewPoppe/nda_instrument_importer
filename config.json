@@ -1,7 +1,7 @@
 {
-    "name": "NDA Converter",
-    "namespace": "YaleREDCap\\NDAConverter",
-    "description": "Converts NDA data dictionaries into REDCap instruments.",
+    "name": "NDA Instrument Importer",
+    "namespace": "YaleREDCap\\NDAImporter",
+    "description": "Imports NDA data collection instruments into REDCap projects.",
     "authors": [
         {
             "name": "Andrew Poppe",
@@ -14,193 +14,13 @@
     "links": {
         "project": [
             {
-                "name":"NDA Converter",
+                "name":"NDA Instrument Importer",
                 "icon": "fas fa-download",
                 "url":"src/php/project.php",
                 "show-header-and-footer": true
             }
-        ],
-        "control-center": [
-            {
-                "name":"NDA Converter",
-                "icon":"fas fa-download",
-                "url":"src/php/main.php"
-            }
         ]
     },
-    "system-settings": [
-        {
-            "key": "info1",
-            "name": "<font style=\"font-size:110%;\"><strong>These settings control how the EM functions. See the EM documentation for more details.</strong></font>",
-            "required": false,
-            "type": "descriptive"
-        },
-        {
-            "key": "grants-project",
-            "name": "<strong>Grants REDCap Project:</strong><br>Select the project that will hold the grant data. You can download a data dictionary for the grants project <strong><a href=\"https://github.com/AndrewPoppe/funded_grant_database/tree/main/data_dictionary\" target=\"_blank\">here</a></strong>",
-            "required": true,
-            "type": "project-id"
-        },
-        {
-            "key": "users-project",
-            "name": "<strong>Users REDCap Project:</strong><br>See Grants REDCap Project above",
-            "required": true,
-            "type": "project-id"
-        },
-        {
-            "key": "contact-name",
-            "name": "<strong>Contact Person:</strong><br>Name of person at your institution that end users should contact",
-            "required": true,
-            "type": "text"
-        },
-        {
-            "key": "contact-email",
-            "name": "<strong>Contact Person's Email</strong>",
-            "required": true,
-            "type": "email"
-        },
-        {
-            "key": "email-users",
-            "name": "<strong>Email Users Upon Download:</strong><br>Should the system send email notices to users when they download grant documents. At most one email will be sent per day, with information about all grants that were downloaded by the user in the previous 24 hours. Administrators will not receive emails",
-            "required": false,
-            "type": "checkbox"
-        },
-        {
-            "key": "email-from-address",
-            "name": "<strong>From email address</strong>",
-            "required": true,
-            "type": "email",
-            "branchingLogic": {
-                "field": "email-users",
-                "value": 1
-            }
-        },
-        {
-            "key": "email-subject",
-            "name": "<strong>Email subject:</strong><br>Default is <em>Funded Grant Database Document Downloads</em>",
-            "required": false,
-            "type": "text",
-            "branchingLogic": {
-                "field": "email-users",
-                "value": 1
-            }
-        },
-        {
-            "key": "email-body",
-            "name": "<strong>Email body:</strong><br>Default text can be found in the EM documentation. The text <code>[download-table]</code> in the email subject will be replaced with a table of the grant documents the user downloaded. Other replacement options can be found in the EM documentation",
-            "required": false,
-            "type": "rich-text",
-            "branchingLogic": {
-                "field": "email-users",
-                "value": 1
-            }
-        },
-        {
-            "key": "info2",
-            "name": "<font style=\"font-size:110%;\"><strong>The following optional settings control cosmetic and text changes.</strong></font>",
-            "required": false,
-            "type": "descriptive"
-        },
-        {
-            "key": "accent-color",
-            "name": "<strong>Accent Color:</strong><br>The main accent color used in the EM",
-            "required": false,
-            "type": "color-picker"
-        },
-        {
-            "key": "text-color",
-            "name": "<strong>Accent Text Color:</strong><br>The color of text used with the main accent color",
-            "required": false,
-            "type": "color-picker"
-        },
-        {
-            "key": "secondary-accent-color",
-            "name": "<strong>Secondary Accent Color:</strong><br>The secondary color used in the EM",
-            "required": false,
-            "type": "color-picker"
-        },
-        {
-            "key": "secondary-text-color",
-            "name": "<strong>Secondary Accent Text Color:</strong><br>The color of text used with the secondary accent color",
-            "required": false,
-            "type": "color-picker"
-        },
-        {
-            "key": "logo",
-            "name": "<strong>Logo File</strong>",
-            "required": false,
-            "type": "file"
-        },
-        {
-            "key": "favicon",
-            "name": "<strong>Favicon File</strong>",
-            "required": false,
-            "type": "file"
-        },
-        {
-            "key": "database-title",
-            "name": "<strong>Database Title</strong>:<br>The title of the database, used throughout the EM<br>Default is: <em>Yale University Funded Grant Database</em>",
-            "required": false,
-            "type": "text"
-        },
-        {
-            "key": "use-custom-fields",
-            "name": "<strong>Use Custom Fields:</strong><br>",
-            "required": false,
-            "type": "checkbox"
-        },
-        {
-            "key": "custom-fields",
-            "name": "<strong>Custom Fields</strong>:<br>Select one or more fields from the grants project that should appear in the data table",
-            "required": false,
-            "repeatable": true,
-            "type": "sub_settings",
-            "branchingLogic": {
-                "field": "use-custom-fields",
-                "value": 1
-            },
-            "sub_settings": [
-                {
-                    "key": "field",
-                    "name": "<strong>Field Variable</strong>",
-                    "required": false,
-                    "type": "text"
-                },
-                {
-                    "key": "label",
-                    "name": "<strong>Table Header Label</strong>",
-                    "required": false,
-                    "type": "text"
-                },
-                {
-                    "key": "visible",
-                    "name": "<strong>Field Visibility</strong><br>Should the field be visible in the tables",
-                    "required": false,
-                    "type": "radio",
-                    "choices": [
-                        {
-                            "value": 0,
-                            "name": "Not Visible"
-                        },
-                        {
-                            "value": 1,
-                            "name": "Visible"
-                        }
-                    ]
-                },
-                {
-                    "key": "column-index",
-                    "name": "<strong>Column Index</strong><br>Where should this column be placed? (0=first column, numbers greater than the number of columns in the table will be placed at the end)",
-                    "required": false,
-                    "type": "text"
-                }
-                
-                
-            ]
-        }
-    ],
-    "crons": [
-    ],
     "compatibility": {
         "redcap-version-min": "9.10.0",
         "redcap-version-max": ""

@@ -229,7 +229,6 @@ function chooseMatches(array $matches, array $parsedVr, string $note) {
             }
         } else {
             // This should catch situations where there is just a range of values with no labels (greater than 20 of them, see else if above)
-            // TODO: Min and Max are not working correctly in this case
             $matches = NULL;
         }
 
@@ -286,8 +285,10 @@ function parseNote(string $note, array $parsedVr = []) {
 function parseBounds(string $valueRange, $parsedNote) {
     $bounds = explode('::', $valueRange);
     $bounds = array_map(function($e) {
-        return trim(preg_replace('/NDAR.*/', '', $bounds));
+        
+        return trim(preg_replace('/NDAR.*/', '', $e));
     }, $bounds);
+    
     if (!$parsedNote && count($bounds) == 2 && is_numeric($bounds[0]) && is_numeric($bounds[1])) {
         sort($bounds);
         return $bounds;
@@ -376,7 +377,7 @@ function createDataDictionary(array $csvArr, string $form, string $duplicateActi
     }
 
     // Create the Data Dictionary
-    $result = array_map(function($field) use ($form) {
+    $result = array_map(function($field) use ($form, &$results) {
         $elementName        = getFieldValue($field, "name");
         $notes              = getFieldValue($field, "notes");
         $valueRange         = getFieldValue($field, "valueRange");

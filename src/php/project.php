@@ -1,30 +1,54 @@
 <?php
 
+$config = $module->getConfig();
+$moduleName = $config["name"];
+$modulePath = $module->getModulePath();
+$moduleVersion = preg_replace("/.*_v|\//", "", $modulePath);
+
 ?>
 
 <!doctype html>
 <html lang="en">
     <head>
-        <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.10.24/af-2.3.5/b-1.7.0/b-colvis-1.7.0/b-html5-1.7.0/b-print-1.7.0/rg-1.1.2/sb-1.0.1/sp-1.2.2/sl-1.3.3/datatables.min.css"/>
-        <script type="text/javascript" src="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.10.24/af-2.3.5/b-1.7.0/b-colvis-1.7.0/b-html5-1.7.0/b-print-1.7.0/rg-1.1.2/sb-1.0.1/sp-1.2.2/sl-1.3.3/datatables.min.js"></script>
+        <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/dt-1.10.24/b-1.7.0/b-colvis-1.7.0/date-1.0.3/sb-1.0.1/sp-1.2.2/sl-1.3.3/datatables.min.css"/>
+        <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.10.24/b-1.7.0/b-colvis-1.7.0/date-1.0.3/sb-1.0.1/sp-1.2.2/sl-1.3.3/datatables.min.js"></script>
+
         <script src="//cdn.jsdelivr.net/npm/sweetalert2@10"></script>
         <script type="text/javascript" src="<?=$module->getUrl("lib/FileSaver.min.js")?>"></script>
     </head>
     <body>
         <div class="pagecontainer">
-            <div>
-                <h4>NDA Instrument Converter</h3>
-                <p>
-                    Use the table below to search for data collection instruments in the NIMH Data Archive.
-                    Select the instruments you would like to add to this REDCap project using the checkboxes.
-                    Multiple instruments can be added by holding <code>CTRL</code> while clicking (<code>CMD</code> on Apple machines).
-                </p>
-                <p>
-                    Click the <strong>Add selected forms</strong> button once you have made your selections.   
-                </p>
+            <div class="infocontainer">
+                <h4><?=$moduleName?></h3>
+                    <p>Use this tool to import data dictionaries from the <strong><a title="NIMH Data Archive" href="https://nda.nih.gov/data_dictionary.html" target="_blank" rel="noopener noreferrer">NIMH Data Archive</a></strong> directly into this REDCap project.</p>
+                <p id="infotext" onclick="(function() {
+                    Swal.fire({
+                        icon: 'info',
+                        iconColor: '#17a2b8',
+                        title: '<?=$moduleName.' v'.$moduleVersion?>',
+                        confirmButtonText: 'Got it!',
+                        confirmButtonColor: '#17a2b8',
+                        html: `Find data collection instruments in the table below using the provided search/filter tools.
+                               <br>Select the instruments you would like to add to this REDCap project using the checkboxes.
+                               <br>Multiple instruments can be added by holding <code>CTRL</code> while clicking (<code>CMD</code> on Apple machines).
+                               <br><br>Click the <strong>Add selected forms</strong> button once you have made your selections.`
+                    })})();">Click here for more information</p>           
                 <br/>
                 <hr>
-
+                <style>
+                    .infocontainer p {
+                        font-size: 110%;
+                    }
+                    #infotext {
+                        cursor: pointer;
+                        text-decoration: underline;
+                        font-weight: bold;
+                        color: #17a2b8;
+                    }
+                    #infotext:hover {
+                        text-shadow: 0px 0px 5px #17a2b8;
+                    }
+                </style>
             </div>
             <div id="ndaSearch" class="dataTableParent">
                 <table id="ndaSearchTable" class="dataTable">
@@ -42,33 +66,7 @@
                             <th>Modified Date</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <?php 
-                            /*$ch = curl_init("https://nda.nih.gov/api/datadictionary/datastructure");
-                            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-                            $instruments = json_decode(curl_exec($ch));
-                            curl_close($ch);
-                            foreach($instruments as $instrument) { 
-                        ?>
-                            <tr>
-                                <td><?= $instrument->shortName ?></td>
-                                <td><?= $instrument->title ?></td>
-                                <td><?= implode("; ", $instrument->sources) ?></td>
-                                <td><?= implode("; ", $instrument->categories) ?></td>
-                                <td><?= $instrument->dataType ?></td>
-                                <td><?= $instrument->status ?></td>
-                                <td><?= $instrument->publicStatus ?></td>
-                                <td><?php 
-                                    $date = DateTime::createFromFormat('Y-m-d\TH:i:s.vO', $instrument->publishDate);
-                                    echo date_format($date, 'Y-m-d'); 
-                                ?></td>
-                                <td><?php 
-                                    $date = DateTime::createFromFormat('Y-m-d\TH:i:s.vO', $instrument->modifiedDate);
-                                    echo date_format($date, 'Y-m-d'); 
-                                ?>
-                            </tr>
-                        <?php    } */?>
-                        
+                    <tbody>                        
                     </tbody>
                 </table>
                 <button id="addFormsButton" class="btn btn-large btn-primaryrc" disabled>Add selected forms</button>
@@ -176,6 +174,7 @@
                 ],
                 dom: 'lBfrtip',
                 stateSave: true,
+                responsive: true,
                 buttons: {
                     dom: {
                         button: {
