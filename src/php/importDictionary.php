@@ -6,7 +6,7 @@ $project = $module->getProject();
 $project_id = $project->getProjectId();
 
 
-$filename = tempnam(APP_PATH_TEMP, "Dictionary_");
+$filename = tempnam(APP_PATH_TEMP, "Dictionary_").'.csv';
 $success = write_file($dictionary, $filename);
 
 if (!$success) {
@@ -14,7 +14,7 @@ if (!$success) {
 }
 
 try {
-    $module->importDataDictionary($project_id, $filename);
+    importDataDictionary($filename);
     exit(json_encode(["success"=>true]));
 }
 catch (exception $e) {
@@ -22,6 +22,46 @@ catch (exception $e) {
 }
 
 
+function importDataDictionary($path) {
+    $dictionary_array = \Design::excel_to_array($path);
+    
+    //Return warnings and errors from file (and fix any correctable errors)
+    list ($errors_array, $warnings_array, $dictionary_array) = \MetaData::error_checking($dictionary_array);
+    
+    // Save data dictionary in metadata table
+    $sql_errors = saveMetadataArray($dictionary_array);
+
+    // 
+    if (count($sql_errors) > 0) {
+        throw new Exception("Error importing Data Dictionary: ".$path);
+    }
+}
+
+
+// Save metadata to the provided project
+function saveMetadataArray($dictionary_array) {
+    try {
+        // disable for production
+        $Proj = new \Project();
+        if($Proj->project['status'] > 0)
+        {
+            throw new Exception("This method is not available for projects in Production status.");
+        }
+
+        // Create a data dictionary snapshot of the *current* metadata and 
+        // store the file in the edocs table
+        \MetaData::createDataDictionarySnapshot();
+
+        // Save metadata array
+        $errors = \MetaData::save_metadata($dictionary_array);
+    }
+    catch (exception $e) {
+        throw $e;
+    }
+    finally {
+        return $errors;
+    }
+}
 
 /**
  * Throw an error with the provided array.

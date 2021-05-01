@@ -1,10 +1,5 @@
 <?php
 
-$config = $module->getConfig();
-$moduleName = $config["name"];
-$modulePath = $module->getModulePath();
-$moduleVersion = preg_replace("/.*_v|\//", "", $modulePath);
-
 ?>
 
 <!doctype html>
@@ -19,13 +14,13 @@ $moduleVersion = preg_replace("/.*_v|\//", "", $modulePath);
     <body>
         <div class="pagecontainer">
             <div class="infocontainer">
-                <h4><?=$moduleName?></h3>
+                <h4><?=$module->getModuleName()?></h3>
                     <p>Use this tool to import data dictionaries from the <strong><a title="NIMH Data Archive" href="https://nda.nih.gov/data_dictionary.html" target="_blank" rel="noopener noreferrer">NIMH Data Archive</a></strong> directly into this REDCap project.</p>
                 <p id="infotext" onclick="(function() {
                     Swal.fire({
                         icon: 'info',
                         iconColor: '#17a2b8',
-                        title: '<?=$moduleName.' v'.$moduleVersion?>',
+                        title: '<?=$module->getModuleName().' '.$module->getModuleVersion()?>',
                         confirmButtonText: 'Got it!',
                         confirmButtonColor: '#17a2b8',
                         html: `Find data collection instruments in the table below using the provided search/filter tools.
@@ -121,16 +116,16 @@ $moduleVersion = preg_replace("/.*_v|\//", "", $modulePath);
             div.dt-buttons {
                 margin-left: 10px;
             }
-            div.dt-button-collection div[role=menu]:not(.dtsb-searchBuilder) button.active {
+            div.dt-button-collection div[role=menu]:not(.dtsb-searchBuilder, .dtsp-panesContainer) button.active {
                 width: 100%;
                 font-weight: normal;    
             }
-            div.dt-button-collection div[role=menu]:not(.dtsb-searchBuilder) button.active:hover {
+            div.dt-button-collection div[role=menu]:not(.dtsb-searchBuilder, .dtsp-panesContainer) button.active:hover {
                 width: 100%;
                 filter: brightness(110%);    
             }
             
-            div.dt-button-collection div[role=menu]:not(.dtsb-searchBuilder) button:not(.active) {
+            div.dt-button-collection div[role=menu]:not(.dtsb-searchBuilder, .dtsp-panesContainer) button:not(.active) {
                 width: 100%;
                 filter: brightness(60%);
                 font-weight: lighter;     
