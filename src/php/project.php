@@ -21,7 +21,7 @@
                     Swal.fire({
                         icon: 'info',
                         iconColor: '#17a2b8',
-                        title: '<?=$module->getModuleName().' '.$module->getModuleVersion()?>',
+                        title: '<?=$module->getModuleName()?>',
                         confirmButtonText: 'Got it!',
                         confirmButtonColor: '#17a2b8',
                         html: `Find data collection instruments in the table below using the provided search/filter tools.
