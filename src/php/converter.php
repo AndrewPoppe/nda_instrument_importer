@@ -348,11 +348,11 @@ function setFieldValue(array $row, string $fieldName, $value) {
  * @param string $duplicateAction What to do with duplicates:
  *                  ignore: keep duplicates in the data
  *                  remove: remove any field that already exists in the fieldArray
- * @param bool $allInOne Whether this function is being run in context of "allInOne" 
+ * @param string $renameSuffix The suffix to append to field name when renaming
  * 
  * @return array Associative array representing data dictionary
  */
-function createDataDictionary(array $csvArr, string $form, string $duplicateAction = "", bool $allInOne = TRUE, $renameSuffix = "") {
+function createDataDictionary(array $csvArr, string $form, string $duplicateAction = "", $renameSuffix = "") {
     global $fieldArray;
 
     // populate fieldArray array as we go to detect duplicates
@@ -442,7 +442,7 @@ function convert_all_in_one($fileObject) {
             throw_error('Error: Input file is not valid: ' . $fileData["formName"]);
         }
 
-        $result = createDataDictionary($data, $fileData["formName"], $duplicateAction, TRUE, $renameSuffix);
+        $result = createDataDictionary($data, $fileData["formName"], $duplicateAction, $renameSuffix);
         $finalResult = array_merge($finalResult, $result);
     }
 
