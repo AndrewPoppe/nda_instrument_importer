@@ -1,6 +1,6 @@
 # NDA Instrument Importer - REDCap External Module
 
-This EM is enabled in a project and allows users to search the NIMH Data Archive [NDA](https://nda.nih.gov/data_dictionary.html) and add selected instruments to their REDCap project. The EM handles converting the data dictionary from the NDA format into REDCap's data dictionary format. However, since NDA's format is not standardized in how multiple choice labels are written, occasional errors may appear in the translation. Please open an issue in this repo if you find any such errors, and include the name of the instrument, the expected result, and the actual result.
+This EM is enabled in a project and allows users to search the NIMH Data Archive ([NDA](https://nda.nih.gov/data_dictionary.html)) and add selected instruments to their REDCap project. The EM handles converting the data dictionary from the NDA format into REDCap's data dictionary format. However, since NDA's format is not standardized in how multiple choice labels are written, occasional errors may appear in the translation. Please open an issue in this repo if you find any such errors, and include the name of the instrument, the expected result, and the actual result.
 
 ## Installation
 
