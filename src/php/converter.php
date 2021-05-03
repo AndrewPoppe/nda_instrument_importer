@@ -439,7 +439,8 @@ function convert_all_in_one($fileObject) {
         $data = $fileData["data"];
     
         if (!inputIsValid($data, $matchFields)) {
-            throw_error('Error: Input file is not valid: ' . $fileData["formName"]);
+            $message = 'Error: Input file is not valid: ' . \REDCap::escapeHtml($fileData["formName"]);
+            throw_error($message);
         }
 
         $result = createDataDictionary($data, $fileData["formName"], $duplicateAction, $renameSuffix);

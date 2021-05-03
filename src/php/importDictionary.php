@@ -27,6 +27,10 @@ function importDataDictionary($path) {
     
     //Return warnings and errors from file (and fix any correctable errors)
     list ($errors_array, $warnings_array, $dictionary_array) = \MetaData::error_checking($dictionary_array);
+
+    if (count($errors_array) > 0) {
+        throw new Exception("Error: supplied dictionary is invalid.".implode(', ', $errors_array));
+    }
     
     // Save data dictionary in metadata table
     $sql_errors = saveMetadataArray($dictionary_array);
