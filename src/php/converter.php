@@ -101,6 +101,13 @@ function inputIsValid(array $csvArr, array $fields) {
 }
 
 
+/**
+ * Given array of 
+ * 
+ * @param array $arr
+ * 
+ * @return [type]
+ */
 function getRanges(array $arr) {
     return array_map(function($element1) {
         $bounds = explode('::', $element1);
