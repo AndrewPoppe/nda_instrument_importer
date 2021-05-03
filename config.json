@@ -1,7 +1,7 @@
 {
     "name": "NDA Instrument Importer",
     "namespace": "YaleREDCap\\NDAImporter",
-    "description": "Imports NDA data collection instruments into REDCap projects.",
+    "description": "This EM allows users to search the NIMH Data Archive and add selected instruments to their REDCap project. The EM handles converting the data dictionary from the NDA format into REDCap's data dictionary format.",
     "authors": [
         {
             "name": "Andrew Poppe",
