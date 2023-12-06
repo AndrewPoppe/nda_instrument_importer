@@ -9,7 +9,6 @@ class Importer
     private array $dictionary;
     private \ExternalModules\Project $project;
     private $project_id;
-    private $doc_id;
 
     public function __construct(NDAImporter $module, array $dictionary)
     {
@@ -24,20 +23,9 @@ class Importer
     {
         $filename = $this->module->framework->createTempFile();
 
-        $success = $this->write_file($this->dictionary, $filename);
+        $success = self::write_file($this->dictionary, $filename);
 
-        return [ 'success' => $success ];
-    }
-
-    private function getEdocPath($doc_id)
-    {
-        $sql    = "SELECT stored_name FROM redcap_edocs_metadata WHERE doc_id = ?";
-        $result = $this->module->framework->query($sql, [ $doc_id ]);
-        if ( $result->num_rows == 0 ) {
-            throw new \Exception("Could not find edoc with doc_id $doc_id");
-        }
-        $row = $result->fetch_assoc();
-        return EDOC_PATH . $row['stored_name'];
+        return [ 'success' => $success, 'filename' => $filename ];
     }
 
     function importDataDictionary($project_id, $path, $delimiter = ",")
@@ -46,7 +34,7 @@ class Importer
             throw new \Exception("File not found for data dictionary import: $path");
         }
 
-        $dictionary_array = $this->module->framework->dataDictionaryCSVToMetadataArray($path, $delimiter);
+        $dictionary_array = \Design::excel_to_array($path, $delimiter);
 
         // Save data dictionary in metadata table
         $this->saveMetadataCSV($dictionary_array, $project_id);
@@ -55,19 +43,18 @@ class Importer
     public function import()
     {
         $result = $this->saveDictionaryCsv();
-        if ( !$result['success'] || empty($this->doc_id) ) {
+        if ( !$result['success'] || empty($result['filename']) || !file_exists($result['filename']) ) {
             return [ "success" => false, "error" => "Error saving dictionary to CSV." ];
         }
         try {
-            $filepath = $this->getEdocPath($this->doc_id);
-            $this->importDataDictionary($this->project_id, $filepath);
+            $this->importDataDictionary($this->project_id, $result['filename']);
             return [ "success" => true ];
         } catch ( \Throwable $e ) {
             return [ "success" => false, "error" => $e->getMessage() ];
         }
     }
 
-    private function saveMetadataCSV($metadata, $pid, $useDraftMode = true)
+    private function saveMetadataCSV($metadata, $pid)
     {
         if ( !is_array($metadata) || empty($metadata) ) {
             throw new \Exception('The metadata specified is not valid.');
@@ -87,19 +74,7 @@ class Importer
         if ( !\MetaData::createDataDictionarySnapshot($pid) ) {
             throw new \Exception("Error calling createDataDictionarySnapshot() for project $pid: " . db_error());
         }
-
-        /**
-         * Temporarily hack the project status to make save_metadata() changes live immediately.
-         */
-        if ( !$useDraftMode ) {
-            \ExternalModules\ExternalModules::updateProjectCache(function ($cache) use ($pid) {
-                $cache[$pid]->project['status'] = '0';
-            });
-        }
         $errors = \MetaData::save_metadata($dd_array, false, false, $pid);
-
-        // Ensure the metadata changes we just imported are respected, AND reset the 'status' after our temporary hack
-        \ExternalModules\ExternalModules::clearProjectCache($pid);
 
         if ( count($errors) > 0 ) {
             throw new \Exception("Failed to save metadata due to the following errors: " . $this->module->framework->escape(implode("\n", $errors)));
@@ -107,7 +82,7 @@ class Importer
     }
 
 
-    private function write_file(array $data, string $filename)
+    private static function write_file(array $data, string $filename)
     {
         $outstream = fopen($filename, 'w');
         $success   = TRUE;
@@ -118,7 +93,6 @@ class Importer
             foreach ( $data as $row ) {
                 fputcsv($outstream, $row, ',', '"');
             }
-            $this->doc_id = \REDCap::storeFile($filename);
         } catch ( \Throwable $e ) {
             $success = FALSE;
         } finally {
