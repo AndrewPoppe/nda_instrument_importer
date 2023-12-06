@@ -9,6 +9,7 @@ class Importer
     private array $dictionary;
     private \ExternalModules\Project $project;
     private $project_id;
+    private $doc_id;
 
     public function __construct(NDAImporter $module, array $dictionary)
     {
@@ -23,9 +24,20 @@ class Importer
     {
         $filename = $this->module->framework->createTempFile();
 
-        $success = self::write_file($this->dictionary, $filename);
+        $success = $this->write_file($this->dictionary, $filename);
 
-        return [ 'success' => $success, 'filename' => $filename ];
+        return [ 'success' => $success ];
+    }
+
+    private function getEdocPath($doc_id)
+    {
+        $sql    = "SELECT stored_name FROM redcap_edocs_metadata WHERE doc_id = ?";
+        $result = $this->module->framework->query($sql, [ $doc_id ]);
+        if ( $result->num_rows == 0 ) {
+            throw new \Exception("Could not find edoc with doc_id $doc_id");
+        }
+        $row = $result->fetch_assoc();
+        return EDOC_PATH . $row['stored_name'];
     }
 
     function importDataDictionary($project_id, $path, $delimiter = ",")
@@ -43,11 +55,12 @@ class Importer
     public function import()
     {
         $result = $this->saveDictionaryCsv();
-        if ( !$result['success'] || empty($result['filename']) || !file_exists($result['filename']) ) {
+        if ( !$result['success'] || empty($this->doc_id) ) {
             return [ "success" => false, "error" => "Error saving dictionary to CSV." ];
         }
         try {
-            $this->importDataDictionary($this->project_id, $result['filename']);
+            $filepath = $this->getEdocPath($this->doc_id);
+            $this->importDataDictionary($this->project_id, $filepath);
             return [ "success" => true ];
         } catch ( \Throwable $e ) {
             return [ "success" => false, "error" => $e->getMessage() ];
@@ -94,7 +107,7 @@ class Importer
     }
 
 
-    private static function write_file(array $data, string $filename)
+    private function write_file(array $data, string $filename)
     {
         $outstream = fopen($filename, 'w');
         $success   = TRUE;
@@ -105,6 +118,7 @@ class Importer
             foreach ( $data as $row ) {
                 fputcsv($outstream, $row, ',', '"');
             }
+            $this->doc_id = \REDCap::storeFile($filename);
         } catch ( \Throwable $e ) {
             $success = FALSE;
         } finally {
