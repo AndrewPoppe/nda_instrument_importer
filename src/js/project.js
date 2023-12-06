@@ -1,38 +1,44 @@
-(function() {
+(function () {
 
     let fileArray = [];
     let searchTable = $('#ndaSearchTable').DataTable({
-        "ajax": {
-            "url": "https://nda.nih.gov/api/datadictionary/datastructure",
-            "dataSrc": ""
+        ajax: {
+            url: "https://nda.nih.gov/api/datadictionary/datastructure",
+            dataSrc: ""
         },
-        "columns": [
-            {data: null, "defaultContent": ""},
-            {data: "shortName", "defaultContent": "" },
-            {data: "title", "defaultContent": "" },
-            {data: "sources[; ]" , "defaultContent": ""},
-            {data: "categories" , render: "[; ]", "defaultContent": ""},
-            {data: "dataType" , "defaultContent": ""},
-            {data: "status" , "defaultContent": ""},
-            {data: "publicStatus" , "defaultContent": ""},
-            {data: "publishDate",
+        deferRender: true,
+        showLoading: true,
+        columns: [
+            { data: null, "defaultContent": "" },
+            { data: "shortName", "defaultContent": "" },
+            { data: "title", "defaultContent": "" },
+            { data: "sources[; ]", "defaultContent": "" },
+            { data: "categories", render: "[; ]", "defaultContent": "" },
+            { data: "dataType", "defaultContent": "" },
+            { data: "status", "defaultContent": "" },
+            { data: "publicStatus", "defaultContent": "" },
+            {
+                data: "publishDate",
                 type: "date", "defaultContent": "",
-                render: function(data, type, row, meta) {
-                if (!data) return "";
-                if (type === "display") {                            
-                    return new Date(data).toLocaleString();
+                render: function (data, type, row, meta) {
+                    if (!data) return "";
+                    if (type === "display") {
+                        return new Date(data).toLocaleString();
+                    }
+                    return data;
                 }
-                return data;
-            }},
-            {data: "modifiedDate",
+            },
+            {
+                data: "modifiedDate",
                 type: "date", "defaultContent": "",
-                render: function(data, type, row, meta) {
-                if (!data) return "";
-                if (type === "display") {                            
-                    return new Date(data).toLocaleString();
+                render: function (data, type, row, meta) {
+                    if (!data) return "";
+                    if (type === "display") {
+                        return new Date(data).toLocaleString();
+                    }
+                    return data;
                 }
-                return data;
-            }},
+            },
         ],
         dom: 'lBfrtip',
         stateSave: true,
@@ -48,7 +54,7 @@
                 {
                     text: "Select All",
                     action: function (e, dt, node, config) {
-                        dt.rows({filter: 'applied'}).select();
+                        dt.rows({ filter: 'applied' }).select();
                     },
                     className: "btn btn-sm btn-primaryrc",
                     titleAttr: "Select all rows that have not been filtered"
@@ -66,7 +72,7 @@
                     },
                     className: "btn btn-sm btn-primaryrc",
                     titleAttr: "Simple filter interface"
-                    
+
                 },
                 {
                     extend: 'searchBuilder',
@@ -98,7 +104,7 @@
             defaultContent: ""
         }],
         select: {
-            style: 'os',
+            style: 'multi',
             selector: 'td:first-child'
         },
         order: [
@@ -106,65 +112,65 @@
         ]
     });
 
-    document.querySelectorAll('.dt-buttons button').forEach(function(elt) {
+    document.querySelectorAll('.dt-buttons button').forEach(function (elt) {
         addTitle(elt, elt.title);
     });
 
-    searchTable.on('select deselect', function(e, dt, type, indexes) {
-        if (dt.rows('.selected').any()) {
+    searchTable.on('select deselect', function (e, dt, type, indexes) {
+        if (dt.rows({ selected: true }).any()) {
             $('#addFormsButton').prop('disabled', false);
         } else {
             $('#addFormsButton').prop('disabled', true);
         }
     });
-    $('#addFormsButton').on('click', function(e) {
+    $('#addFormsButton').on('click', function (e) {
         makeLoading();
-        let rows = searchTable.rows('.selected');
+        let rows = searchTable.rows({ selected: true });
         let nRows = rows.count();
         if (nRows > 20) {
             Swal.fire({
                 icon: 'error',
-                title:'Error: Too many instruments selected',
+                title: 'Error: Too many instruments selected',
                 html: `${nRows} instruments is a lot! Choose fewer.`
             });
         } else {
             let ajaxPromises = [];
             let results = [];
-            searchTable.rows('.selected').every(function(rowIdx, tableLoop, rowLoop) {
+            searchTable.rows({ selected: true }).every(function (rowIdx, tableLoop, rowLoop) {
                 let data = this.data();
                 let instrument_name = data.shortName;
-                
+
                 ajaxPromises.push(
                     $.ajax({
                         type: "GET",
                         url: `https://nda.nih.gov/api/datadictionary/datastructure/${instrument_name}`,
-                    }).then(function(result) {
+                    }).then(function (result) {
                         results.push({
                             data: result.dataElements,
                             formName: result.shortName
                         });
-                    }).catch(function(err) {
+                    }).catch(function (err) {
                         makeError(err);
                     })
                 );
             });
             $.when(...ajaxPromises)
-            .then(function(data, textStatus, jqXHR) {
-                fileArray = results;
-                convert(results);
-            })
-            .catch(function(err) {
-                makeError(err);
-            });
+                .then(function (data, textStatus, jqXHR) {
+                    fileArray = results;
+                    convert(results);
+                })
+                .catch(function (err) {
+                    makeError(err);
+                });
         }
     });
-    searchTable.on( 'buttons-action', 
-        function ( e, buttonApi, dataTable, node, config ) {
+    searchTable.on('buttons-action',
+        function (e, buttonApi, dataTable, node, config) {
             const text = buttonApi.text();
             if (text.search(/Panes|Builder/)) {
                 $('.dt-button-collection').draggable();
             }
-    });
+        });
 
     function makeLoading() {
         Swal.fire({
@@ -177,7 +183,7 @@
         });
     }
     function addTitle(element, title) {
-        $(element).prop('data-toggle','tooltip');
+        $(element).prop('data-toggle', 'tooltip');
         $(element).prop('title', title);
         $(element).tooltip();
     }
@@ -201,16 +207,16 @@
                     const content = Swal.getContent();
                     if (content) {
                         const confirmButton = document.querySelector('.swal2-confirm');
-                        const denyButton    = document.querySelector('.swal2-deny');
+                        const denyButton = document.querySelector('.swal2-deny');
                         addTitle(confirmButton, 'This removes all duplicated fields from the final result, leaving only the first occurence of the field.');
                         addTitle(denyButton, 'This changes the field names of duplicated fields in the final result.\nYou will be prompted to provide a suffix for the new field names.');
                     }
                 },
                 willClose: () => {
                     const confirmButton = document.querySelector('.swal2-confirm');
-                    const denyButton    = document.querySelector('.swal2-deny');
-                    $(confirmButton).tooltip('close');
-                    $(denyButton).tooltip('close');
+                    const denyButton = document.querySelector('.swal2-deny');
+                    $(confirmButton).tooltip('hide');
+                    $(denyButton).tooltip('hide');
                 }
             }
         } else {
@@ -219,7 +225,7 @@
                 title: err?.responseJSON?.error || "Error",
                 html: err?.responseJSON?.message || err?.responseText || err
             };
-        }    
+        }
         return Swal.fire(options);
     }
 
@@ -236,13 +242,13 @@
     function filterFieldName(temp) {
         temp = temp.trim();
         temp = temp.toLowerCase();
-        temp = temp.replace(/[^a-z0-9]/ig,"_");
-        temp = temp.replace(/[_]+/g,"_");
-        while (temp.length > 0 && (temp.charAt(0) == "_" || temp.charAt(0)*1 == temp.charAt(0))) {
-            temp = temp.substr(1,temp.length);
+        temp = temp.replace(/[^a-z0-9]/ig, "_");
+        temp = temp.replace(/[_]+/g, "_");
+        while (temp.length > 0 && (temp.charAt(0) == "_" || temp.charAt(0) * 1 == temp.charAt(0))) {
+            temp = temp.substr(1, temp.length);
         }
-        while (temp.length > 0 && temp.charAt(temp.length-1) == "_") {
-            temp = temp.substr(0,temp.length-1);
+        while (temp.length > 0 && temp.charAt(temp.length - 1) == "_") {
+            temp = temp.substr(0, temp.length - 1);
         }
         return temp;
     }
@@ -256,15 +262,15 @@
                 input: "text",
                 inputLabel: "Choose a suffix to be appended to all duplicate field names.\nLeave blank to append the name of the form (e.g., field_form1)",
                 showCancelButton: true,
-                preConfirm: function(suffix) {
+                preConfirm: function (suffix) {
                     return suffix.toLowerCase().replace(/[^a-z0-9_]/g, '');
                 }
             })
-            .then(function(result) {
-                if (result.isDismissed) return;
-                makeLoading();
-                convert(fileArray, duplicateAction, result.value);
-            })
+                .then(function (result) {
+                    if (result.isDismissed) return;
+                    makeLoading();
+                    convert(fileArray, duplicateAction, result.value);
+                })
         } else {
             makeLoading();
             convert(fileArray, duplicateAction);
@@ -288,7 +294,7 @@
             div = `<div class="fieldArray">${fieldArray.join('<br>')}</div>`
             outerdiv = `<div>${div}</div>`
         }
-        return outerdiv; 
+        return outerdiv;
     }
 
     function importDictionary(dictionary) {
@@ -296,26 +302,21 @@
         let formData = new FormData();
         formData.append("dictionary", postData);
 
-        $.ajax({
-            type: "POST",
-            url: nda_importer.importDictionaryPath,
-            data: formData,
-            processData: false,
-            contentType: false,
-        }).then(function(result) {
-            Swal.close();
-            console.log(result);
-            result = JSON.parse(result);
-            if (result.success) {
-                makeSuccess();
-            } else {
+        nda_importer.ajax('import', dictionary)
+            .then(function (result) {
+                Swal.close();
                 console.log(result);
-                makeError(result);
-            }
-        }).catch(function(err) {
-            Swal.close();
-            makeError(err);
-        })
+                if (result.success) {
+                    makeSuccess();
+                } else {
+                    console.log(result);
+                    makeError(result);
+                }
+            })
+            .catch(function (err) {
+                Swal.close();
+                makeError(err);
+            });
     }
 
 
@@ -332,6 +333,13 @@
 
     }
 
+    /**
+     * Converts the given file array.
+     * 
+     * @param {Array} fileArray - The array of files to be converted.
+     * @param {string} duplicateAction - The action to be taken in case of duplicate files.
+     * @param {string} renameSuffix - The suffix to be added to the renamed files.
+     */
     function convert(fileArray, duplicateAction, renameSuffix) {
         let payload = {
             fileArray: fileArray,
@@ -345,24 +353,16 @@
         let formData = new FormData();
         formData.append("payload", postData);
 
-        $.ajax({
-            type: "POST",
-            url: nda_importer.converterPath,
-            data: formData,
-            processData: false,
-            contentType: false,
-        }).then(function(result) {
-            Swal.close();
-            console.log(result);
-            res = JSON.parse(result);
-            console.log(res);
-            if (res.success) {
-                Swal.fire({
-                    //icon: "warning",
-                    iconHtml:"<i class=\"fas fa-clipboard-check\"></i>", 
-                    iconColor:"#aed130",
-                    title: "Confirm Changes",
-                    html: "Below is a table with the forms and fields to be added.<br>" + 
+        nda_importer.ajax('convert', payload)
+            .then(function (res) {
+                Swal.close();
+                if (res.success) {
+                    Swal.fire({
+                        //icon: "warning",
+                        iconHtml: "<i class=\"fas fa-clipboard-check\"></i>",
+                        iconColor: "#aed130",
+                        title: "Confirm Changes",
+                        html: "Below is a table with the forms and fields to be added.<br>" +
                             "Clicking the <strong>Confirm</strong> button below will add these to the current project.<br><br>" +
                             `<table class="table table-striped table-bordered">
                             <thead>
@@ -385,33 +385,36 @@
                                 </tr>
                             </tbody>
                             </table>`,
-                    showCancelButton: true,
-                    confirmButtonText: "Confirm"
-                })
-                .then(function(response) {
-                    if (response.isConfirmed) {
-                        makeLoading();
-                        importDictionary(res.dictionary);
+                        showCancelButton: true,
+                        confirmButtonText: "Confirm"
+                    })
+                        .then(function (response) {
+                            if (response.isConfirmed) {
+                                makeLoading();
+                                importDictionary(res.dictionary);
+                            }
+                        })
+                        .catch(function (err) {
+                            Swal.close();
+                            makeError(err);
+                        });
+                } else {
+                    if (501 == res.code) {
+                        makeError(res.error, 'Error converting files', duplicates = true)
+                            .then(handleDuplicateChoice);
                     }
-                })
-                .catch(function(err) {
-                    Swal.close();
-                    makeError(err);
-                });
-            }
-        }).catch(function(err) {
-            Swal.close();
-            if (err.status == 501) { // duplicates found
-                makeError(err.responseText, 'Error converting files', duplicates = true)
-                .then(handleDuplicateChoice);
-            }
-            else if (err.status == 502) { // duplicate form
-                makeDuplicateFormDialog(err.responseText)
-                .then(handleDuplicateFormChoice);
-            }
-            else {
+                    else if (502 == res.code) {
+                        makeDuplicateFormDialog(res.error)
+                            .then(handleDuplicateFormChoice);
+                    }
+                    else {
+                        makeError(res.error);
+                    }
+                }
+            })
+            .catch(function (err) {
+                Swal.close();
                 makeError(err);
-            }
-        })
+            });
     }
 })();

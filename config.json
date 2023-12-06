@@ -9,20 +9,26 @@
             "institution": "Yale Center for Clinical Investigation"
         }
     ],
-    "permissions": [],
-    "framework-version": 5,
+    "framework-version": 14,
+    "auth-ajax-actions": [
+        "convert",
+        "import",
+        "projectStatus"
+    ],
     "links": {
         "project": [
             {
-                "name":"NDA Instrument Importer",
+                "name": "NDA Instrument Importer",
                 "icon": "fas fa-download",
-                "url":"src/php/project.php",
+                "url": "src/php/project.php",
                 "show-header-and-footer": true
             }
         ]
     },
     "compatibility": {
-        "redcap-version-min": "9.10.0",
-        "redcap-version-max": ""
+        "redcap-version-min": "13.7.0",
+        "redcap-version-max": "",
+        "php-version-min": "7.4.0",
+        "php-version-max": ""
     }
 }
