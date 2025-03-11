@@ -6,10 +6,10 @@
         {
             "name": "Andrew Poppe",
             "email": "andrew.poppe@yale.edu",
-            "institution": "Yale Center for Clinical Investigation"
+            "institution": "Yale Research Informatics Office"
         }
     ],
-    "framework-version": 14,
+    "framework-version": 15,
     "auth-ajax-actions": [
         "convert",
         "import",
@@ -26,7 +26,7 @@
         ]
     },
     "compatibility": {
-        "redcap-version-min": "13.7.0",
+        "redcap-version-min": "14.0.2",
         "redcap-version-max": "",
         "php-version-min": "7.4.0",
         "php-version-max": ""
