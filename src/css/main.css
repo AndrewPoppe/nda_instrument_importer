@@ -22,9 +22,9 @@ button {
 }
 
 #fileDisplay {
-    background-color: white; 
-    border: 2px solid #dddddd; 
-    padding: 10px; 
+    background-color: white;
+    border: 2px solid #dddddd;
+    padding: 10px;
     margin-top: 20px;
     margin-bottom: 5%;
     display: none;
@@ -40,7 +40,8 @@ button {
     margin-top: 2%;
     margin-bottom: 2%;
 }
-.form-switch > * {
+
+.form-switch>* {
     cursor: pointer;
 }
 
@@ -66,7 +67,8 @@ button {
     font-weight: bold;
 }
 
-.btn-primary-yale:focus, .btn-primary-yale:hover{
+.btn-primary-yale:focus,
+.btn-primary-yale:hover {
     outline: none;
     background-color: #4b5924 !important;
     border-color: #36401a;
@@ -87,17 +89,20 @@ button {
 }
 
 .delete {
-    color:#f27474; 
-    font-size:1em;
+    color: #f27474;
+    font-size: 1em;
 }
 
 .delete:hover {
-    color:#f22935; 
-    font-size:1.5em;
+    color: #f22935;
+    font-size: 1.5em;
     cursor: pointer;
 }
 
-button:focus, button:hover, a:focus, a:hover {
+button:focus,
+button:hover,
+a:focus,
+a:hover {
     outline: none !important;
 }
 
@@ -110,10 +115,10 @@ button:focus, button:hover, a:focus, a:hover {
 }
 
 body {
-	background-color: #333;
-	font-family: "Open Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Helvetica,Arial,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol";
-	font-size: 12px;
-	margin: 0;
-	padding: 0;
-	overflow: auto;
+    background-color: #333;
+    font-family: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    font-size: 12px;
+    margin: 0;
+    padding: 0;
+    overflow: auto;
 }

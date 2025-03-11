@@ -51,9 +51,36 @@ class Converter
         }, $data);
     }
 
+    private static function reorder_fields(array $oldDd, array $newData) 
+    {
+        $result = [];
+        $prevForm = "";
+        if (empty($newData)) {
+            return $oldDd;
+        }
+        foreach ($oldDd as $oldDdRow) {
+            $thisForm = $oldDdRow["form_name"];
+            if (empty($prevForm)) $prevForm = $thisForm;
+            if ( $prevForm !== $thisForm ) {
+                foreach ($newData as $key => $newDataRow) {
+                    if ($newDataRow["form_name"] === $prevForm) {
+                        $result[] = $newDataRow;
+                        unset($newData[$key]);
+                    } 
+                }
+            } 
+            $result[] = $oldDdRow;
+            $prevForm = $thisForm;
+        }
+        foreach ($newData as $newDataRow) {
+            $result[] = $newDataRow;
+        }
+        return $result;
+    }
+
     private static function combine_dicts_to_file(array $newData, array $oldDD, string $filename)
     {
-        $header    = array_keys($newData[0]);
+        $header    = array_keys(reset($oldDD));
         $dd        = self::reformat_array($oldDD, $header);
         $outstream = fopen($filename, 'w');
         $success   = TRUE;
@@ -61,12 +88,10 @@ class Converter
             return FALSE;
         }
         try {
+            $combinedData = self::reorder_fields($dd, $newData);
             fputcsv($outstream, $header, ',', '"');
-            foreach ( $dd as $ddrow ) {
-                fputcsv($outstream, $ddrow, ',', '"');
-            }
-            foreach ( $newData as $dataRow ) {
-                fputcsv($outstream, $dataRow, ',', '"');
+            foreach ( $combinedData as $row ) {
+                fputcsv($outstream, $row, ',', '"');
             }
         } catch ( \Throwable $e ) {
             $success = FALSE;
@@ -95,7 +120,7 @@ class Converter
     {
         foreach ( $fields as $field => $label ) {
             foreach ( $csvArr as $row ) {
-                if ( !in_array($field, array_keys($row), true) ) {
+                if ( !in_array($field, array_keys($row ?? []), true) ) {
                     return false;
                 }
             }
@@ -460,7 +485,7 @@ class Converter
         }
 
         $duplicates = self::array_duplicates($this->fieldArray);
-        if ( count($duplicates) && !$duplicateAction ) {
+        if ( count($duplicates) && empty($duplicateAction) ) {
             return [ "error" => '<strong>The following field names were duplicated in your'
                 . ' file(s)</strong>:<br>' . implode('<br>', $duplicates), "code" => 501 ];
         }
@@ -556,7 +581,7 @@ class Converter
 
     public function convert()
     {
-        $dd_array       = \REDCap::getDataDictionary('array');
+        $dd_array       = \REDCap::getDataDictionary('array') ?? [];
         $current_fields = \REDCap::getFieldNames();
         $current_forms  = \REDCap::getInstrumentNames();
 
@@ -568,6 +593,7 @@ class Converter
         }
 
         $filename       = $this->module->framework->createTempFile();
+
         $combine_status = self::combine_dicts_to_file($result, $dd_array, $filename);
         if ( $combine_status === FALSE ) {
             return [ "success" => FALSE, "error" => "Failure to produce combined data dictionary." ];

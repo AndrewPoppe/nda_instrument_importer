@@ -44,6 +44,11 @@ div#ndaSearch,
     width: auto;
 }
 
+.swal2-content {
+    max-height: 50vh;
+    overflow-y: scroll;
+}
+
 button:hover {
     outline: none !important;
 }

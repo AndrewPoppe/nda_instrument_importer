@@ -223,7 +223,7 @@
             options = {
                 icon: "error",
                 title: err?.responseJSON?.error || "Error",
-                html: err?.responseJSON?.message || err?.responseText || err
+                html: err?.responseJSON?.message || err?.responseText || html_entity_decode(err?.error) || err
             };
         }
         return Swal.fire(options);
@@ -262,7 +262,7 @@
                 input: "text",
                 inputLabel: "Choose a suffix to be appended to all duplicate field names.\nLeave blank to append the name of the form (e.g., field_form1)",
                 showCancelButton: true,
-                preConfirm: function (suffix) {
+                preConfirm: function (suffix = "") {
                     return suffix.toLowerCase().replace(/[^a-z0-9_]/g, '');
                 }
             })

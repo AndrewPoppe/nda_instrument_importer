@@ -16,22 +16,26 @@ class NDAImporter extends AbstractExternalModule
 {
     public function redcap_module_ajax($action, $payload, $projectId, $record, $instrument, $eventId, $repeatInstance, $surveyHash, $responseId, $surveyQueueHash, $page, $pageFull, $userId, $groupId)
     {
-        if ( $action === 'convert' ) {
-            $projectWriteable = $this->isProjectWriteable($projectId);
-            if ( !$projectWriteable ) {
-                return [ "success" => false, "error" => "This project is not writeable." ];
+        try {
+            if ( $action === 'convert' ) {
+                $projectWriteable = $this->isProjectWriteable($projectId);
+                if ( !$projectWriteable ) {
+                    return [ "success" => false, "error" => "This project is not writeable." ];
+                }
+                $converter = new Converter($this, $payload);
+                return $converter->convert();
+            } else if ( $action === 'import' ) {
+                $projectWriteable = $this->isProjectWriteable($projectId);
+                if ( !$projectWriteable ) {
+                    return [ "success" => false, "error" => "This project is not writeable." ];
+                }
+                $importer = new Importer($this, $payload);
+                return $importer->import();
+            } else if ( $action === 'projectStatus' ) {
+                return $this->framework->getProjectStatus($projectId);
             }
-            $converter = new Converter($this, $payload);
-            return $converter->convert();
-        } else if ( $action === 'import' ) {
-            $projectWriteable = $this->isProjectWriteable($projectId);
-            if ( !$projectWriteable ) {
-                return [ "success" => false, "error" => "This project is not writeable." ];
-            }
-            $importer = new Importer($this, $payload);
-            return $importer->import();
-        } else if ( $action === 'projectStatus' ) {
-            return $this->framework->getProjectStatus($projectId);
+        } catch (\Throwable $e) {
+            return [ "success" => false, "error" => $e->getMessage() ];
         }
     }
 
